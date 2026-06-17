@@ -115,6 +115,9 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sa
 .form-control:focus { outline: none; border-color: var(--primary); }
 .form-control::placeholder { color: var(--text-light); }
 select.form-control { cursor: pointer; }
+select.form-control[multiple] { cursor: default; }
+select.form-control[multiple] option { padding: 6px 8px; border-radius: 4px; }
+select.form-control[multiple] option:checked { background: var(--primary-light); color: var(--primary-dark); }
 textarea.form-control { resize: vertical; min-height: 70px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
