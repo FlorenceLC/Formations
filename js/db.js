@@ -96,7 +96,11 @@ const LocalAdapter = {
     }));
     if (filters.search) {
       const q = filters.search.toLowerCase();
-      list = list.filter(f => f.titre.toLowerCase().includes(q) || (f.lieu||'').toLowerCase().includes(q) || (f.intervenants||'').toLowerCase().includes(q));
+      const cats = this._read(DB_KEYS.CATEGORIES) || [];
+      list = list.filter(f => {
+        const catName = (cats.find(c => c.id === f.categorieId)?.nom || '').toLowerCase();
+        return catName.includes(q) || (f.lieu||'').toLowerCase().includes(q) || (f.formateurs||'').toLowerCase().includes(q);
+      });
     }
     if (filters.categorieId) list = list.filter(f => f.categorieId === filters.categorieId);
     if (filters.statut) list = list.filter(f => f.statut === filters.statut);
@@ -122,7 +126,7 @@ const LocalAdapter = {
   duplicateFormation(id, createdBy) {
     const f = this.getFormationById(id);
     if (!f) return null;
-    const copy = { ...f, id: this._newId(), titre: f.titre + ' (copie)', statut: 'en_attente', createdBy, createdAt: new Date().toISOString() };
+    const copy = { ...f, id: this._newId(), statut: 'validee', createdBy, createdAt: new Date().toISOString() };
     delete copy.inscritsCount;
     const raw = this._read(DB_KEYS.FORMATIONS) || [];
     raw.push(copy);
@@ -192,51 +196,66 @@ function seedIfEmpty() {
   // Hash helper
   const h = db._hashPassword.bind(db);
 
-  // Catégories
-  const cats = [
-    { id: 'cat1', nom: 'Sécurité', couleur: '#DC2626' },
-    { id: 'cat2', nom: 'Informatique', couleur: '#2563EB' },
-    { id: 'cat3', nom: 'Management', couleur: '#9333EA' },
-    { id: 'cat4', nom: 'Réglementaire', couleur: '#D97706' },
-    { id: 'cat5', nom: 'Qualité', couleur: '#16A34A' },
-    { id: 'cat6', nom: 'Technique', couleur: '#0891B2' },
+  // Catégories FTSI
+  const catNames = [
+    'SIG', 'SIG - Stains', 'GLOCK', 'DIVA', 'TDI', 'PPI', 'TIREURS QUALIFIÉS',
+    'OTUAS NIV 1', 'OTUAS NIV 2', 'STAGES', 'ROC', 'EXERCICE PRU',
+    'ENTRAÎNEMENT STHI', 'ENTRAÎNEMENT MROP', 'EVA NIV 1', 'EVA NIV 2', 'EVA NIV 3',
+    'TIR LASER', 'TASER - RECYCLAGE', 'TASER - HABILITATION',
+    'HK G36 - RECYCLAGE', 'HK G36 - HABILITATION',
+    'LBD - RECYCLAGE', 'LBD - HABILITATION',
+    'BÂTON - RECYCLAGE', 'BÂTON - HABILITATION',
+    'GRENADES - RECYCLAGE', 'GRENADES - HABILITATION',
+    'COBRA - RECYCLAGE', 'COBRA - HABILITATION',
+    'CONDOR - RECYCLAGE', 'CONDOR - HABILITATION',
+    'COUGARD - RECYCLAGE', 'COUGARD - HABILITATION',
+    'GENL - RECYCLAGE', 'GENL - HABILITATION',
+    'OPÉRATEURS SPI 4G - RECYCLAGE', 'OPÉRATEURS SPI 4G - HABILITATION',
+    'PPI CHEF - RECYCLAGE', 'PPI CHEF - HABILITATION',
+    'TIKKA - RECYCLAGE', 'TIKKA - HABILITATION',
+    'ADMINISTRATIF',
   ];
+  // Palette cyclique pour distinguer visuellement les catégories
+  const palette = ['#2563EB','#DC2626','#16A34A','#D97706','#9333EA','#0891B2','#DB2777','#65A30D','#7C3AED','#0D9488'];
+  const cats = catNames.map((nom, i) => ({ id: 'cat_' + (i+1), nom, couleur: palette[i % palette.length] }));
   cats.forEach(c => db.saveCategory(c));
 
-  // Utilisateurs
+  // Utilisateurs — dont un compte "configurateur" (gestion Supabase uniquement)
   const users = [
-    { id: 'u1', username: 'admin', passwordHash: h('admin123'), nom: 'Dupont', prenom: 'Jean', email: 'j.dupont@ftsi.fr', couleur: '#DC2626', isAdmin: true, isActive: true },
-    { id: 'u2', username: 'marie.martin', passwordHash: h('password'), nom: 'Martin', prenom: 'Marie', email: 'm.martin@ftsi.fr', couleur: '#2563EB', isAdmin: false, isActive: true },
-    { id: 'u3', username: 'pierre.durand', passwordHash: h('password'), nom: 'Durand', prenom: 'Pierre', email: 'p.durand@ftsi.fr', couleur: '#16A34A', isAdmin: false, isActive: true },
-    { id: 'u4', username: 'sophie.bernard', passwordHash: h('password'), nom: 'Bernard', prenom: 'Sophie', email: 's.bernard@ftsi.fr', couleur: '#9333EA', isAdmin: false, isActive: true },
-    { id: 'u5', username: 'lucas.petit', passwordHash: h('password'), nom: 'Petit', prenom: 'Lucas', email: 'l.petit@ftsi.fr', couleur: '#D97706', isAdmin: false, isActive: true },
+    { id: 'u0', username: 'configurateur', passwordHash: h('config123'), nom: 'Configurateur', prenom: 'Compte', email: '', couleur: '#0F172A', isAdmin: true, isConfigurateur: true, isActive: true },
+    { id: 'u1', username: 'admin', passwordHash: h('admin123'), nom: 'Dupont', prenom: 'Jean', email: 'j.dupont@ftsi.fr', couleur: '#DC2626', isAdmin: true, isConfigurateur: false, isActive: true },
+    { id: 'u2', username: 'marie.martin', passwordHash: h('password'), nom: 'Martin', prenom: 'Marie', email: 'm.martin@ftsi.fr', couleur: '#2563EB', isAdmin: false, isConfigurateur: false, isActive: true },
+    { id: 'u3', username: 'pierre.durand', passwordHash: h('password'), nom: 'Durand', prenom: 'Pierre', email: 'p.durand@ftsi.fr', couleur: '#16A34A', isAdmin: false, isConfigurateur: false, isActive: true },
+    { id: 'u4', username: 'sophie.bernard', passwordHash: h('password'), nom: 'Bernard', prenom: 'Sophie', email: 's.bernard@ftsi.fr', couleur: '#9333EA', isAdmin: false, isConfigurateur: false, isActive: true },
+    { id: 'u5', username: 'lucas.petit', passwordHash: h('password'), nom: 'Petit', prenom: 'Lucas', email: 'l.petit@ftsi.fr', couleur: '#D97706', isAdmin: false, isConfigurateur: false, isActive: true },
   ];
   users.forEach(u => db.saveUser(u));
 
-  // Catalogue
+  // Catalogue (quelques exemples types)
+  const byName = n => cats.find(c => c.nom === n)?.id;
   const catalogue = [
-    { id: 'c1', titre: 'Sécurité', description: 'Recyclage SST', categorieId: 'cat1', dureeHeures: 14 },
-    { id: 'c2', titre: 'Informatique', description: 'Excel avancé', categorieId: 'cat2', dureeHeures: 14 },
-    { id: 'c3', titre: 'Management', description: "Management d'équipe", categorieId: 'cat3', dureeHeures: 21 },
-    { id: 'c4', titre: 'Réglementaire', description: 'RGPD pratique', categorieId: 'cat4', dureeHeures: 7 },
+    { id: 'c1', titre: 'SIG', description: 'Entraînement SIG standard', categorieId: byName('SIG'), dureeHeures: 7 },
+    { id: 'c2', titre: 'GLOCK', description: 'Entraînement GLOCK', categorieId: byName('GLOCK'), dureeHeures: 7 },
+    { id: 'c3', titre: 'TASER - RECYCLAGE', description: 'Recyclage annuel TASER', categorieId: byName('TASER - RECYCLAGE'), dureeHeures: 4 },
+    { id: 'c4', titre: 'OTUAS NIV 1', description: "Formation initiale OTUAS niveau 1", categorieId: byName('OTUAS NIV 1'), dureeHeures: 21 },
   ];
   catalogue.forEach(c => db.saveCatalogueItem(c));
 
-  // Formations
+  // Formations de démonstration
   const now = new Date();
-  const dt = (dj, h, m=0) => {
+  const dt = (dj, hh, mm=0) => {
     const d = new Date(now); d.setDate(d.getDate() + dj);
-    d.setHours(h, m, 0, 0); return d.toISOString();
+    d.setHours(hh, mm, 0, 0); return d.toISOString();
   };
   const formations = [
-    { id: 'f1', titre: 'SST – Recyclage 2025', categorieId: 'cat1', dateDebut: dt(7,9), dateFin: dt(7,17), lieu: 'Salle A – RDC', intervenants: 'Formateur INRS', placesMax: 8, statut: 'validee', createdBy: 'u1' },
-    { id: 'f2', titre: 'Excel Avancé – Groupe 1', categorieId: 'cat2', dateDebut: dt(14,9), dateFin: dt(14,17), lieu: 'Salle Info B2', intervenants: 'Prestataire DataSkills', placesMax: 12, statut: 'validee', createdBy: 'u1' },
-    { id: 'f3', titre: "Management d'équipe", categorieId: 'cat3', dateDebut: dt(21,9), dateFin: dt(21,18), lieu: 'Salle de conférence', intervenants: 'Coach externe', placesMax: 10, statut: 'en_attente', createdBy: 'u1' },
-    { id: 'f4', titre: 'Habilitation Électrique', categorieId: 'cat1', dateDebut: dt(28,8), dateFin: dt(28,16), lieu: 'Site technique', intervenants: 'Électricien référent', placesMax: 6, statut: 'en_attente', createdBy: 'u1' },
-    { id: 'f5', titre: 'RGPD Pratique', categorieId: 'cat4', dateDebut: dt(35,14), dateFin: dt(35,18), lieu: 'Salle A – RDC', intervenants: 'DPO Externe', placesMax: 15, statut: 'en_attente', createdBy: 'u1' },
-    { id: 'f6', titre: 'ISO 9001 Sensibilisation', categorieId: 'cat5', dateDebut: dt(-7,9), dateFin: dt(-7,17), lieu: 'Salle de conférence', intervenants: 'Responsable Qualité', placesMax: 20, statut: 'validee', createdBy: 'u1' },
-    { id: 'f7', titre: 'Gestes et Postures', categorieId: 'cat1', dateDebut: dt(-14,9), dateFin: dt(-14,12), lieu: 'Salle A – RDC', intervenants: 'Ergonome', placesMax: 12, statut: 'validee', createdBy: 'u1' },
-    { id: 'f8', titre: 'Excel Avancé – Groupe 2', categorieId: 'cat2', dateDebut: dt(42,9), dateFin: dt(42,17), lieu: 'Salle Info B2', intervenants: 'Prestataire DataSkills', placesMax: 12, statut: 'en_attente', createdBy: 'u1' },
+    { id: 'f1', categorieId: byName('SIG'), dateDebut: dt(7,9), dateFin: dt(7,17), lieu: 'Stand de tir A', formateurs: 'Jean Dupont', placesMax: 8, statut: 'validee', createdBy: 'u1' },
+    { id: 'f2', categorieId: byName('GLOCK'), dateDebut: dt(14,9), dateFin: dt(14,17), lieu: 'Stand de tir B', formateurs: 'Pierre Durand', placesMax: 12, statut: 'validee', createdBy: 'u1' },
+    { id: 'f3', categorieId: byName('OTUAS NIV 1'), dateDebut: dt(21,9), dateFin: dt(21,18), lieu: 'Salle de cours', formateurs: 'Marie Martin', placesMax: 10, statut: 'validee', createdBy: 'u1' },
+    { id: 'f4', categorieId: byName('TASER - RECYCLAGE'), dateDebut: dt(28,8), dateFin: dt(28,16), lieu: 'Site technique', formateurs: 'Lucas Petit', placesMax: 6, statut: 'validee', createdBy: 'u1' },
+    { id: 'f5', categorieId: byName('LBD - HABILITATION'), dateDebut: dt(35,14), dateFin: dt(35,18), lieu: 'Stand de tir A', formateurs: 'Jean Dupont, Sophie Bernard', placesMax: 15, statut: 'validee', createdBy: 'u1' },
+    { id: 'f6', categorieId: byName('ROC'), dateDebut: dt(-7,9), dateFin: dt(-7,17), lieu: 'Terrain extérieur', formateurs: 'Pierre Durand', placesMax: 20, statut: 'validee', createdBy: 'u1' },
+    { id: 'f7', categorieId: byName('EVA NIV 1'), dateDebut: dt(-14,9), dateFin: dt(-14,12), lieu: 'Salle de cours', formateurs: 'Marie Martin', placesMax: 12, statut: 'validee', createdBy: 'u1' },
+    { id: 'f8', categorieId: byName('ADMINISTRATIF'), dateDebut: dt(42,9), dateFin: dt(42,17), lieu: 'Salle de réunion', formateurs: 'Jean Dupont', placesMax: 12, statut: 'validee', createdBy: 'u1' },
   ];
   formations.forEach(f => db.saveFormation(f));
 

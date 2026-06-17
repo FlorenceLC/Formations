@@ -26,6 +26,7 @@ const Pages = {
       }
       container.innerHTML = prochaines.map(f => {
         const isInscrit = myIds.includes(f.id);
+        const fCat = DB.getCategories().find(c => c.id === f.categorieId);
         return `
           <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
             <div style="background:${isInscrit ? 'var(--primary-light)' : 'var(--bg)'};border-radius:8px;padding:8px 12px;text-align:center;min-width:52px;flex-shrink:0;">
@@ -33,7 +34,7 @@ const Pages = {
               <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;">${new Date(f.dateDebut).toLocaleDateString('fr-FR',{month:'short'})}</div>
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.titre}</div>
+              <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fCat?.nom || 'Formation'}</div>
               <div style="font-size:12px;color:var(--text-muted);">${Fmt.time(f.dateDebut)} — ${f.lieu || '—'}</div>
             </div>
             <div style="flex-shrink:0;display:flex;gap:6px;align-items:center;">
@@ -92,6 +93,7 @@ const Pages = {
       const today = new Date(); today.setHours(0,0,0,0);
       const myFormationIds = new Set(DB.getUserFormations(App.currentUser.id).map(f => f.id));
       const formations = this._getFormations();
+      const cats = DB.getCategories();
 
       // Group by date
       const byDate = {};
@@ -120,13 +122,12 @@ const Pages = {
 
         dayForms.slice(0, 3).forEach(f => {
           const isMine = myFormationIds.has(f.id);
-          const inscr = DB.getInscriptions(f.id);
-          const names = inscr.map(i => i.user?.prenom || '').filter(Boolean).join(', ');
+          const catName = cats.find(c => c.id === f.categorieId)?.nom || 'Formation';
           html += `<div class="cal-event${isMine ? ' my-event' : ''}"
-            title="${f.titre}\n👨‍🏫 ${f.intervenants||'—'}\n📍 ${f.lieu||'—'}\n👥 ${f.inscritsCount}/${f.placesMax} participants"
+            title="${catName}\n👨‍🏫 ${f.formateurs||'—'}\n📍 ${f.lieu||'—'}\n👥 ${f.inscritsCount}/${f.placesMax} participants"
             onclick="Pages.planning._openDetail('${f.id}')">
-            <div class="cal-event-title">${f.titre}</div>
-            <div class="cal-event-meta">⏰ ${Fmt.time(f.dateDebut)} · 👤 ${f.inscritsCount}/${f.placesMax}</div>
+            <div class="cal-event-title">${catName}</div>
+            <div class="cal-event-meta">⏰ ${Fmt.time(f.dateDebut)} · 👨‍🏫 ${f.formateurs||'—'} · 👤 ${f.inscritsCount}/${f.placesMax}</div>
           </div>`;
         });
         if (dayForms.length > 3) {
@@ -145,6 +146,7 @@ const Pages = {
       const today = new Date(); today.setHours(0,0,0,0);
       const myFormationIds = new Set(DB.getUserFormations(App.currentUser.id).map(f => f.id));
       const formations = this._getFormations();
+      const cats = DB.getCategories();
       const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 
       let html = '<div class="week-grid">';
@@ -166,11 +168,12 @@ const Pages = {
         } else {
           dayForms.forEach(f => {
             const isMine = myFormationIds.has(f.id);
+            const catName = cats.find(c => c.id === f.categorieId)?.nom || 'Formation';
             html += `<div class="week-event${isMine ? ' my-event' : ''}" onclick="Pages.planning._openDetail('${f.id}')">
-              <div class="week-event-title">${f.titre}</div>
+              <div class="week-event-title">${catName}</div>
               <div class="week-event-meta">⏰ ${Fmt.time(f.dateDebut)}–${Fmt.time(f.dateFin)}</div>
               <div class="week-event-meta">📍 ${f.lieu||'—'}</div>
-              <div class="week-event-meta">👨‍🏫 ${f.intervenants||'—'}</div>
+              <div class="week-event-meta">👨‍🏫 ${f.formateurs||'—'}</div>
               <div class="week-event-meta">👥 ${f.inscritsCount}/${f.placesMax}</div>
             </div>`;
           });
@@ -232,23 +235,23 @@ const Pages = {
         const isInscrit = DB.isInscrit(f.id, u.id);
         const cat = DB.getCategories().find(c => c.id === f.categorieId);
         return `<tr>
-          <td><strong style="cursor:pointer;color:var(--primary);" onclick="Pages.formations._openDetail('${f.id}')">${f.titre}</strong></td>
-          <td>${cat ? `<span class="badge badge-primary" style="background:${cat.couleur}22;color:${cat.couleur};">${cat.nom}</span>` : '—'}</td>
+          <td>${cat ? `<span class="badge badge-primary" style="background:${cat.couleur}22;color:${cat.couleur};cursor:pointer;" onclick="Pages.formations._openDetail('${f.id}')">${cat.nom}</span>` : '—'}</td>
           <td>${Fmt.date(f.dateDebut)}</td>
           <td>${f.dateDebut ? Fmt.time(f.dateDebut) + ' – ' + Fmt.time(f.dateFin) : '—'}</td>
           <td>${f.lieu || '—'}</td>
-          <td><span style="font-weight:700;${f.inscritsCount >= f.placesMax ? 'color:var(--danger)' : ''}">${f.inscritsCount}/${f.placesMax}</span></td>
+          <td>${f.formateurs || '—'}</td>
+          <td><span style="font-weight:700;">${f.placesMax}</span></td>
           <td>${statusBadge(f.statut)}</td>
           <td>
-            <div style="display:flex;gap:4px;align-items:center;">
-              <button class="btn btn-sm btn-ghost btn-icon" title="Détail" onclick="Pages.formations._openDetail('${f.id}')">👁</button>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-icon" style="background:var(--primary-light);color:var(--primary);width:38px;height:38px;font-size:16px;" title="Voir le détail" onclick="Pages.formations._openDetail('${f.id}')">👁</button>
               ${isInscrit
-                ? `<button class="btn btn-sm btn-icon" style="background:var(--danger-light);color:var(--danger);" title="Se désinscrire" onclick="Pages.formations._desinscrire('${f.id}')">✖</button>`
-                : (f.statut !== 'annulee' ? `<button class="btn btn-sm btn-icon" style="background:var(--success-light);color:var(--success);" title="S'inscrire" onclick="Pages.formations._inscrire('${f.id}')">✚</button>` : '')}
+                ? `<button class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);width:38px;height:38px;font-size:16px;" title="Se désinscrire" onclick="Pages.formations._desinscrire('${f.id}')">✖</button>`
+                : (f.statut !== 'annulee' ? `<button class="btn btn-icon" style="background:var(--success-light);color:var(--success);width:38px;height:38px;font-size:16px;" title="S'inscrire" onclick="Pages.formations._inscrire('${f.id}')">✚</button>` : '')}
               ${(u.isAdmin || f.createdBy === u.id) ? `
-                <button class="btn btn-sm btn-icon" style="background:var(--warning-light);color:var(--warning);" title="Modifier" onclick="Pages.formations._openForm('${f.id}')">✏️</button>
-                <button class="btn btn-sm btn-icon" style="background:var(--primary-light);color:var(--primary);" title="Dupliquer" onclick="Pages.formations._duplicate('${f.id}')">📋</button>
-                ${u.isAdmin ? `<button class="btn btn-sm btn-icon" style="background:var(--danger-light);color:var(--danger);" title="Supprimer" onclick="Pages.formations._delete('${f.id}')">🗑</button>` : ''}
+                <button class="btn btn-icon" style="background:var(--warning-light);color:var(--warning);width:38px;height:38px;font-size:16px;" title="Modifier" onclick="Pages.formations._openForm('${f.id}')">✏️</button>
+                <button class="btn btn-icon" style="background:var(--primary-light);color:var(--primary);width:38px;height:38px;font-size:16px;" title="Dupliquer" onclick="Pages.formations._duplicate('${f.id}')">📋</button>
+                ${u.isAdmin ? `<button class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);width:38px;height:38px;font-size:16px;" title="Supprimer" onclick="Pages.formations._delete('${f.id}')">🗑</button>` : ''}
               ` : ''}
             </div>
           </td>
@@ -263,12 +266,12 @@ const Pages = {
       const inscriptions = DB.getInscriptions(f.id);
       const isInscrit = DB.isInscrit(f.id, App.currentUser.id);
 
-      document.getElementById('detail-modal-title').textContent = f.titre;
+      document.getElementById('detail-modal-title').textContent = cat?.nom || 'Formation';
       document.getElementById('detail-modal-body').innerHTML = `
         <div class="detail-row"><span class="detail-icon">📅</span><div><div class="detail-key">Date</div><div class="detail-val">${Fmt.date(f.dateDebut)}</div></div></div>
         <div class="detail-row"><span class="detail-icon">⏰</span><div><div class="detail-key">Horaires</div><div class="detail-val">${Fmt.time(f.dateDebut)} – ${Fmt.time(f.dateFin)} (${Fmt.dureeH(f.dateDebut, f.dateFin)})</div></div></div>
         <div class="detail-row"><span class="detail-icon">📍</span><div><div class="detail-key">Lieu</div><div class="detail-val">${f.lieu || '—'}</div></div></div>
-        <div class="detail-row"><span class="detail-icon">👨‍🏫</span><div><div class="detail-key">Intervenants</div><div class="detail-val">${f.intervenants || '—'}</div></div></div>
+        <div class="detail-row"><span class="detail-icon">👨‍🏫</span><div><div class="detail-key">Formateurs</div><div class="detail-val">${f.formateurs || '—'}</div></div></div>
         <div class="detail-row"><span class="detail-icon">🏷</span><div><div class="detail-key">Catégorie</div><div class="detail-val">${cat?.nom || '—'}</div></div></div>
         <div class="detail-row"><span class="detail-icon">👥</span><div><div class="detail-key">Participants (${f.inscritsCount}/${f.placesMax})</div>
           <div class="participants-list">${inscriptions.length ? inscriptions.map(i => {
@@ -327,7 +330,8 @@ const Pages = {
 
     _delete(id) {
       const f = DB.getFormationById(id);
-      confirm('Supprimer', `Supprimer définitivement « ${f?.titre} » ?`, () => {
+      const cat = DB.getCategories().find(c => c.id === f?.categorieId);
+      confirm('Supprimer', `Supprimer définitivement « ${cat?.nom || 'cette formation'} » du ${Fmt.date(f?.dateDebut)} ?`, () => {
         DB.deleteFormation(id);
         toast('Formation supprimée', 'info');
         this.render();
@@ -356,34 +360,44 @@ const Pages = {
       const sel = document.getElementById('form-categorie');
       sel.innerHTML = '<option value="">— Sélectionner —</option>';
       DB.getCategories().forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.nom; sel.appendChild(o); });
-      // Custom category input
       sel.innerHTML += '<option value="__new__">➕ Nouvelle catégorie...</option>';
+
+      // Fill formateurs multi-select avec les utilisateurs FTSI
+      const formateursSel = document.getElementById('form-formateurs');
+      formateursSel.innerHTML = '';
+      DB.getUsers().filter(u => !u.isConfigurateur).forEach(u => {
+        const o = document.createElement('option');
+        o.value = `${u.prenom} ${u.nom}`;
+        o.textContent = `${u.prenom} ${u.nom}`;
+        formateursSel.appendChild(o);
+      });
 
       // Fill form
       document.getElementById('form-id').value = id || '';
-      document.getElementById('form-titre').value = f?.titre || '';
       document.getElementById('form-description').value = f?.description || '';
       document.getElementById('form-categorie').value = f?.categorieId || '';
       document.getElementById('form-date-debut').value = f?.dateDebut ? f.dateDebut.slice(0,16) : '';
       document.getElementById('form-date-fin').value = f?.dateFin ? f.dateFin.slice(0,16) : '';
       document.getElementById('form-lieu').value = f?.lieu || '';
-      document.getElementById('form-intervenants').value = f?.intervenants || '';
       document.getElementById('form-places').value = f?.placesMax || 10;
-      document.getElementById('form-statut').value = f?.statut || 'en_attente';
+      document.getElementById('form-statut').value = (f?.statut === 'annulee') ? 'annulee' : 'validee';
       document.getElementById('form-new-categorie').value = '';
       document.getElementById('form-new-categorie-row').style.display = 'none';
+
+      // Pré-sélection des formateurs existants
+      const existingFormateurs = (f?.formateurs || '').split(',').map(s => s.trim()).filter(Boolean);
+      Array.from(formateursSel.options).forEach(opt => { opt.selected = existingFormateurs.includes(opt.value); });
 
       Modal.open('form-modal');
     },
 
     save() {
       const id = document.getElementById('form-id').value;
-      const titre = document.getElementById('form-titre').value.trim();
-      if (!titre) { toast('Le titre est obligatoire', 'error'); return; }
 
       const dateDebut = document.getElementById('form-date-debut').value;
       const dateFin = document.getElementById('form-date-fin').value;
-      if (dateDebut && dateFin && dateFin <= dateDebut) {
+      if (!dateDebut || !dateFin) { toast('Les dates de début et fin sont obligatoires', 'error'); return; }
+      if (dateFin <= dateDebut) {
         toast('La date de fin doit être après le début', 'error'); return;
       }
 
@@ -395,16 +409,19 @@ const Pages = {
         DB.saveCategory(newCat);
         categorieId = newCat.id;
       }
+      if (!categorieId) { toast('La catégorie est obligatoire', 'error'); return; }
+
+      const formateursSel = document.getElementById('form-formateurs');
+      const formateurs = Array.from(formateursSel.selectedOptions).map(o => o.value).join(', ');
 
       const formation = {
         id: id || newId(),
-        titre,
         description: document.getElementById('form-description').value.trim(),
-        categorieId: categorieId || null,
-        dateDebut: dateDebut ? new Date(dateDebut).toISOString() : null,
-        dateFin: dateFin ? new Date(dateFin).toISOString() : null,
+        categorieId,
+        dateDebut: new Date(dateDebut).toISOString(),
+        dateFin: new Date(dateFin).toISOString(),
         lieu: document.getElementById('form-lieu').value.trim(),
-        intervenants: document.getElementById('form-intervenants').value.trim(),
+        formateurs,
         placesMax: parseInt(document.getElementById('form-places').value) || 10,
         statut: document.getElementById('form-statut').value,
         createdBy: id ? DB.getFormationById(id)?.createdBy : App.currentUser.id,
@@ -426,10 +443,10 @@ const Pages = {
     exportExcel() {
       const formations = DB.getFormations(this.filters);
       const cats = DB.getCategories();
-      const rows = [['Titre','Catégorie','Date','Début','Fin','Lieu','Intervenants','Places','Inscrits','Statut']];
+      const rows = [['Catégorie','Date','Début','Fin','Lieu','Formateurs','Places max','Inscrits','Statut']];
       formations.forEach(f => {
         const cat = cats.find(c => c.id === f.categorieId);
-        rows.push([f.titre, cat?.nom||'', Fmt.date(f.dateDebut), Fmt.time(f.dateDebut), Fmt.time(f.dateFin), f.lieu||'', f.intervenants||'', f.placesMax, f.inscritsCount, f.statut]);
+        rows.push([cat?.nom||'', Fmt.date(f.dateDebut), Fmt.time(f.dateDebut), Fmt.time(f.dateFin), f.lieu||'', f.formateurs||'', f.placesMax, f.inscritsCount, f.statut]);
       });
       const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
       const blob = new Blob(['\ufeff'+csv], { type: 'text/csv;charset=utf-8;' });
@@ -466,6 +483,10 @@ const Pages = {
     _tab: 'users',
     render() { this.showTab(this._tab); },
     showTab(tab) {
+      if (tab === 'config' && !App.currentUser.isConfigurateur) {
+        toast('Accès réservé au compte configurateur', 'error');
+        tab = 'users';
+      }
       this._tab = tab;
       document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
       document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = c.dataset.tab === tab ? 'block' : 'none');
@@ -484,7 +505,7 @@ const Pages = {
           </div>
         </td>
         <td>${u.email || '—'}</td>
-        <td>${u.isAdmin ? '<span class="badge badge-warning">⭐ Admin</span>' : '<span class="badge badge-gray">Collaborateur</span>'}</td>
+        <td>${u.isConfigurateur ? '<span class="badge badge-gray" style="background:#0F172A22;color:#0F172A;">🔧 Configurateur</span>' : (u.isAdmin ? '<span class="badge badge-warning">⭐ Admin</span>' : '<span class="badge badge-gray">Collaborateur</span>')}</td>
         <td>
           <div style="display:flex;gap:4px;">
             <button class="btn btn-sm btn-icon" style="background:var(--warning-light);color:var(--warning);" title="Modifier" onclick="Pages.admin._editUser('${u.id}')">✏️</button>

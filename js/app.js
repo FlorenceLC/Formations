@@ -82,6 +82,9 @@ const App = {
     document.getElementById('topbar-user-name').textContent = `${u.prenom} ${u.nom}`;
     // Show/hide admin nav
     document.getElementById('nav-admin').style.display = u.isAdmin ? 'flex' : 'none';
+    // Show config tab only for the configurateur account
+    const cfgTabBtn = document.getElementById('tab-btn-config');
+    if (cfgTabBtn) cfgTabBtn.style.display = u.isConfigurateur ? 'inline-flex' : 'none';
   },
 
   openSidebar() {
@@ -156,7 +159,6 @@ const Fmt = {
 /* ===== STATUS LABELS ===== */
 const STATUS = {
   validee: { label: 'Validée', cls: 'badge-success' },
-  en_attente: { label: 'En attente', cls: 'badge-warning' },
   annulee: { label: 'Annulée', cls: 'badge-danger' },
 };
 function statusBadge(statut) {
