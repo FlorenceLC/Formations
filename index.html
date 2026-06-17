@@ -33,7 +33,7 @@
           Se connecter
         </button>
       </form>
-      <div class="login-hint">Compte test : admin / admin123</div>
+      <div class="login-hint">Compte test : admin / admin123<br>Compte configurateur : configurateur / config123</div>
     </div>
   </div>
 </div>
@@ -226,12 +226,12 @@
           <table>
             <thead>
               <tr>
-                <th>Titre</th>
                 <th>Catégorie</th>
                 <th>Date</th>
                 <th>Horaires</th>
                 <th>Lieu</th>
-                <th>Participants</th>
+                <th>Formateurs</th>
+                <th>Participants (max)</th>
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
@@ -240,6 +240,19 @@
               <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Chargement…</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Légende des boutons d'action -->
+        <div style="margin-top:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Légende des actions</div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;">
+            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--primary-light);color:var(--primary);width:30px;height:30px;font-size:14px;pointer-events:none;">👁</span> Voir le détail</span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--success-light);color:var(--success);width:30px;height:30px;font-size:14px;pointer-events:none;">✚</span> S'inscrire</span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);width:30px;height:30px;font-size:14px;pointer-events:none;">✖</span> Se désinscrire</span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--warning-light);color:var(--warning);width:30px;height:30px;font-size:14px;pointer-events:none;">✏️</span> Modifier</span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--primary-light);color:var(--primary);width:30px;height:30px;font-size:14px;pointer-events:none;">📋</span> Dupliquer</span>
+            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);width:30px;height:30px;font-size:14px;pointer-events:none;">🗑</span> Supprimer</span>
+          </div>
         </div>
       </div>
 
@@ -281,7 +294,7 @@
         <!-- Onglets admin -->
         <div style="display:flex;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:18px;">
           <button class="view-tab admin-tab-btn active" data-tab="users" onclick="Pages.admin.showTab('users')">👥 Utilisateurs</button>
-          <button class="view-tab admin-tab-btn" data-tab="config" onclick="Pages.admin.showTab('config')">🔧 Configuration</button>
+          <button class="view-tab admin-tab-btn" id="tab-btn-config" data-tab="config" onclick="Pages.admin.showTab('config')" style="display:none;">🔧 Configuration</button>
         </div>
 
         <!-- TAB : Utilisateurs -->
@@ -304,15 +317,9 @@
           </div>
         </div>
 
-        <!-- TAB : Configuration Supabase -->
+        <!-- TAB : Configuration Supabase (réservé au compte configurateur) -->
         <div class="admin-tab-content" data-tab="config" style="display:none;">
           <div style="max-width:600px;">
-            <div class="config-info">
-              <strong>🗄 Pourquoi Supabase ?</strong><br>
-              Supabase est une base de données PostgreSQL hébergée dans le cloud. Elle offre <strong>500 Mo gratuits</strong> (largement suffisant pour votre équipe), une interface simple et une API sécurisée. C'est la meilleure option pour partager les données entre plusieurs postes et mobiles.<br><br>
-              <strong>Comparatif :</strong> Supabase (500 Mo gratuit, temps réel, SQL) est bien supérieur à GitHub Gist (limité à 10 Mo, pas de base relationnelle).
-            </div>
-
             <div id="config-status" class="config-status disconnected">
               ⚠️ Non configuré — données stockées localement dans le navigateur
             </div>
@@ -473,43 +480,27 @@
       <div class="form-group" id="form-catalogue-label">
         <label class="form-label">Importer depuis le catalogue (optionnel)</label>
         <select id="form-catalogue-import" class="form-control"
-          onchange="if(this.value){const c=DB.getCatalogue().find(x=>x.id===this.value);if(c){document.getElementById('form-titre').value=c.titre||'';document.getElementById('form-description').value=c.description||'';document.getElementById('form-categorie').value=c.categorieId||'';}this.value='';}">
+          onchange="if(this.value){const c=DB.getCatalogue().find(x=>x.id===this.value);if(c){document.getElementById('form-description').value=c.description||'';document.getElementById('form-categorie').value=c.categorieId||'';}this.value='';}">
         </select>
       </div>
 
-      <div class="form-row">
-        <div class="form-group" style="grid-column:1/-1;">
-          <label class="form-label">Titre <span style="color:var(--danger)">*</span></label>
-          <input id="form-titre" class="form-control" type="text" placeholder="Intitulé de la formation">
-        </div>
-      </div>
-
       <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea id="form-description" class="form-control" rows="2" placeholder="Description optionnelle…"></textarea>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Catégorie</label>
-          <select id="form-categorie" class="form-control"
-            onchange="if(this.value==='__new__'){document.getElementById('form-new-categorie-row').style.display='block';}else{document.getElementById('form-new-categorie-row').style.display='none';}">
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Statut</label>
-          <select id="form-statut" class="form-control">
-            <option value="en_attente">En attente</option>
-            <option value="validee">Validée</option>
-            <option value="annulee">Annulée</option>
-          </select>
-        </div>
+        <label class="form-label">Catégorie <span style="color:var(--danger)">*</span></label>
+        <select id="form-categorie" class="form-control"
+          onchange="if(this.value==='__new__'){document.getElementById('form-new-categorie-row').style.display='block';}else{document.getElementById('form-new-categorie-row').style.display='none';}">
+        </select>
+        <div class="form-hint">Choisissez une catégorie existante ou créez-en une nouvelle</div>
       </div>
 
       <!-- Nouvelle catégorie -->
       <div class="form-group" id="form-new-categorie-row" style="display:none;">
         <label class="form-label">Nom de la nouvelle catégorie</label>
         <input id="form-new-categorie" class="form-control" type="text" placeholder="Ex : Technique, Langues…">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="form-description" class="form-control" rows="2" placeholder="Description optionnelle…"></textarea>
       </div>
 
       <div class="form-row">
@@ -526,7 +517,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Lieu</label>
-          <input id="form-lieu" class="form-control" type="text" placeholder="Salle, bâtiment…">
+          <input id="form-lieu" class="form-control" type="text" placeholder="Salle, bâtiment, stand…">
         </div>
         <div class="form-group">
           <label class="form-label">Places maximum</label>
@@ -535,8 +526,18 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Intervenants / Formateurs</label>
-        <input id="form-intervenants" class="form-control" type="text" placeholder="Nom des formateurs">
+        <label class="form-label">Formateurs</label>
+        <select id="form-formateurs" class="form-control" multiple size="5" style="height:auto;padding:6px;">
+        </select>
+        <div class="form-hint">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs formateurs</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Statut</label>
+        <select id="form-statut" class="form-control">
+          <option value="validee">Validée</option>
+          <option value="annulee">Annulée</option>
+        </select>
       </div>
     </div>
     <div class="modal-footer">
