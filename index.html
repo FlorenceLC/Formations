@@ -8,6 +8,40 @@
 </head>
 <body>
 
+<!-- ===== ÉCRAN CONFIGURATION SUPABASE (1ère utilisation) ===== -->
+<div id="no-config-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1E293B,#0F172A);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;padding:36px;width:100%;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:52px;margin-bottom:10px;">🦅</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:6px;">Formations FTSI</div>
+      <div style="font-size:13px;color:#64748B;line-height:1.5;">Première utilisation — connectez votre base de données Supabase pour partager les données entre tous les appareils de l'équipe.</div>
+    </div>
+    <form id="no-config-form">
+      <div class="form-group">
+        <label class="form-label">URL du projet Supabase</label>
+        <input id="nc-url" class="form-control" type="url" placeholder="https://xxxx.supabase.co" required autocapitalize="off" autocorrect="off">
+        <div class="form-hint">Supabase → Settings → API → Project URL</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Clé anon (publique)</label>
+        <input id="nc-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" required autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Supabase → Settings → API → anon public</div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;height:44px;font-size:14px;margin-top:4px;">
+        🔌 Se connecter à Supabase
+      </button>
+    </form>
+    <div style="margin-top:18px;padding:14px;background:#F1F5F9;border-radius:8px;font-size:12px;color:#64748B;line-height:1.6;">
+      <strong>Pas encore de projet Supabase ?</strong><br>
+      1. Créez un compte gratuit sur <strong>supabase.com</strong><br>
+      2. Créez un projet, allez dans <strong>SQL Editor</strong><br>
+      3. Copiez-collez le contenu du fichier <strong>sql/schema.sql</strong> et exécutez-le<br>
+      4. Revenez ici avec l'URL et la clé
+    </div>
+  </div>
+</div>
+
+
 <!-- ===== LOGIN ===== -->
 <div id="login-screen">
   <div class="login-left">
@@ -23,13 +57,13 @@
       <form id="login-form">
         <div class="form-group">
           <label class="form-label">Identifiant</label>
-          <input id="login-username" class="form-control" type="text" placeholder="Votre identifiant" autocomplete="username" required>
+          <input id="login-username" class="form-control" type="text" placeholder="Votre identifiant" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
         </div>
         <div class="form-group">
           <label class="form-label">Mot de passe</label>
           <input id="login-password" class="form-control" type="password" placeholder="Votre mot de passe" autocomplete="current-password" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;height:42px;font-size:14px;margin-top:4px;">
+        <button type="submit" id="login-submit-btn" class="btn btn-primary" style="width:100%;height:42px;font-size:14px;margin-top:4px;">
           Se connecter
         </button>
       </form>
@@ -637,35 +671,7 @@
 <script src="js/app.js"></script>
 <script src="js/pages.js"></script>
 
-<script>
-// Extra init after all scripts loaded
-document.addEventListener('DOMContentLoaded', () => {
-  // Greeting with user name
-  const origLogin = App.loginSuccess.bind(App);
-  App.loginSuccess = function(user) {
-    origLogin(user);
-    const greet = document.getElementById('dashboard-greeting');
-    if (greet) greet.textContent = `Bonjour, ${user.prenom} 👋`;
-    document.getElementById('profil-fullname').textContent = `${user.prenom} ${user.nom}`;
-    document.getElementById('profil-username-display').textContent = `@${user.username}`;
-  };
 
-  // Update profil display when navigating
-  const origNavigate = App.navigate.bind(App);
-  App.navigate = function(page) {
-    origNavigate(page);
-    if (page === 'profil' && App.currentUser) {
-      const u = App.currentUser;
-      document.getElementById('profil-fullname').textContent = `${u.prenom} ${u.nom}`;
-      document.getElementById('profil-username-display').textContent = `@${u.username}`;
-    }
-    if (page === 'dashboard' && App.currentUser) {
-      const greet = document.getElementById('dashboard-greeting');
-      if (greet) greet.textContent = `Bonjour, ${App.currentUser.prenom} 👋`;
-    }
-  };
-});
-</script>
 
 </body>
 </html>
