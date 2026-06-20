@@ -124,6 +124,30 @@ const DB = {
     return Supa.upsert('categories', row);
   },
 
+  // ---- LIEUX ----
+  async getLieux() {
+    return Supa.select('lieux', 'order=nom.asc');
+  },
+  async saveLieu(item) {
+    const row = { id: item.id || newId(), nom: item.nom };
+    return Supa.upsert('lieux', row);
+  },
+  async deleteLieu(id) {
+    return Supa.delete('lieux', id);
+  },
+
+  // ---- FORMATEURS ----
+  async getFormateurs() {
+    return Supa.select('formateurs', 'order=nom.asc');
+  },
+  async saveFormateur(item) {
+    const row = { id: item.id || newId(), nom: item.nom };
+    return Supa.upsert('formateurs', row);
+  },
+  async deleteFormateur(id) {
+    return Supa.delete('formateurs', id);
+  },
+
   // ---- FORMATIONS ----
   async getFormations(filters = {}) {
     let query = 'order=date_debut.asc';

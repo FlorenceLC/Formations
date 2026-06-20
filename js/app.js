@@ -4,6 +4,9 @@
  */
 
 const App = {
+  _lastNotifId: null,
+  _notifPermissionAsked: false,
+
   async init() {
     if (!DB.isConfigured()) {
       showNoConfigScreen();
@@ -11,9 +14,61 @@ const App = {
     }
     hideNoConfigScreen();
     Pages.planning.render();
+    await this._initLastNotifId();
+    this._requestNotifPermission();
     this._refreshNotifBadge();
-    // Rafraîchir le badge de notifications périodiquement
-    setInterval(() => this._refreshNotifBadge(), 30000);
+    // Vérifier les nouvelles notifications toutes les 20 secondes
+    setInterval(() => this._checkNewNotifications(), 20000);
+  },
+
+  async _initLastNotifId() {
+    try {
+      const notifs = await DB.getNotifications(1);
+      this._lastNotifId = notifs[0]?.id || null;
+    } catch (e) { /* silencieux */ }
+  },
+
+  _requestNotifPermission() {
+    if (this._notifPermissionAsked) return;
+    this._notifPermissionAsked = true;
+    if ('Notification' in window && Notification.permission === 'default') {
+      // Demander la permission après un court délai pour ne pas bloquer le chargement initial
+      setTimeout(() => { Notification.requestPermission(); }, 1500);
+    }
+  },
+
+  async _checkNewNotifications() {
+    try {
+      const notifs = await DB.getNotifications(10);
+      if (!notifs.length) return;
+
+      const newest = notifs[0];
+      if (this._lastNotifId && newest.id !== this._lastNotifId) {
+        // Trouver toutes les notifs plus récentes que la dernière connue
+        const idx = notifs.findIndex(n => n.id === this._lastNotifId);
+        const fresh = idx === -1 ? notifs : notifs.slice(0, idx);
+        fresh.reverse().forEach(n => this._showSystemNotification(n));
+      }
+      this._lastNotifId = newest.id;
+      this._refreshNotifBadge();
+    } catch (e) { /* silencieux */ }
+  },
+
+  _showSystemNotification(notif) {
+    const icon = NOTIF_ICONS[notif.type] || 'ℹ️';
+    // Notification système (visible même app en arrière-plan / écran verrouillé sur certains OS,
+    // tant que le navigateur/l'onglet reste ouvert en arrière-plan)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('Formations FTSI', {
+          body: `${icon} ${notif.message}`,
+          tag: notif.id,
+          silent: false,
+        });
+      } catch (e) { /* certains navigateurs mobiles restreignent l'API */ }
+    }
+    // Toast in-app en complément
+    toast(notif.message, 'info');
   },
 
   async _refreshNotifBadge() {
@@ -89,6 +144,34 @@ function statusBadge(s) {
   return `<span class="badge ${st.cls}">${st.label}</span>`;
 }
 
+/* ===== CRÉNEAUX HORAIRES ===== */
+const CRENEAUX = {
+  matin: { label: '🌅 Matin',      startH: 8,  startM: 0, endH: 12, endM: 0, endNextDay: false },
+  aprem: { label: '☀️ Après-midi', startH: 13, startM: 0, endH: 17, endM: 0, endNextDay: false },
+  nuit:  { label: '🌙 Nuit',       startH: 19, startM: 0, endH: 1,  endM: 0, endNextDay: true  },
+};
+
+/* Construit dateDebut/dateFin ISO à partir d'une date (YYYY-MM-DD) et d'un créneau.
+   Le créneau "nuit" se termine après minuit : la date de fin passe au jour suivant. */
+function buildCreneauDates(dateStr, creneauKey) {
+  const c = CRENEAUX[creneauKey];
+  if (!c || !dateStr) return { dateDebut: null, dateFin: null };
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const debut = new Date(y, m - 1, d, c.startH, c.startM, 0);
+  const fin   = new Date(y, m - 1, d, c.endH, c.endM, 0);
+  if (c.endNextDay) fin.setDate(fin.getDate() + 1);
+  return { dateDebut: debut.toISOString(), dateFin: fin.toISOString() };
+}
+
+/* Devine le créneau à partir d'une heure de début (pour l'édition) */
+function guessCreneau(dateDebutIso) {
+  if (!dateDebutIso) return 'matin';
+  const h = new Date(dateDebutIso).getHours();
+  if (h < 13) return 'matin';
+  if (h < 19) return 'aprem';
+  return 'nuit';
+}
+
 /* ===== NOTIFICATION TYPE ICONS ===== */
 const NOTIF_ICONS = {
   creation:     '🆕',
@@ -99,6 +182,15 @@ const NOTIF_ICONS = {
 
 /* ===== DOM READY ===== */
 document.addEventListener('DOMContentLoaded', () => {
+
+  // Bouton refresh
+  document.getElementById('refresh-btn').addEventListener('click', () => {
+    const btn = document.getElementById('refresh-btn');
+    btn.style.transform = 'rotate(360deg)';
+    btn.style.transition = 'transform 0.4s';
+    setTimeout(() => { btn.style.transform = ''; }, 400);
+    Pages.planning.refresh();
+  });
 
   // Bouton notifications
   document.getElementById('notif-bell-btn').addEventListener('click', () => Pages.notifications.open());

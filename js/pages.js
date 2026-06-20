@@ -194,6 +194,7 @@ const Pages = {
       this.render();
     },
     today() { this.currentDate = new Date(); this.render(); },
+    refresh() { toast('Planning actualisé 🔄', 'info'); this.render(); App._refreshNotifBadge(); },
     switchView(v) {
       this.view = v;
       document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
@@ -283,29 +284,45 @@ const Pages = {
     /* ---- FORMULAIRE CRÉATION / MODIFICATION ---- */
     async _openForm(id = null) {
       const isEdit = !!id;
-      const [f, cats] = await Promise.all([
+      const [f, cats, lieux, formateurs] = await Promise.all([
         id ? DB.getFormationById(id) : Promise.resolve(null),
         DB.getCategories(),
+        DB.getLieux(),
+        DB.getFormateurs(),
       ]);
 
       document.getElementById('form-modal-title').textContent = isEdit ? '✏️  Modifier la formation' : '➕  Nouvelle formation';
 
+      // Catégories
       const sel = document.getElementById('form-categorie');
       sel.innerHTML = '<option value="">— Sélectionner —</option>';
       cats.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=c.nom; sel.appendChild(o); });
       sel.innerHTML += '<option value="__new__">➕ Nouvelle catégorie...</option>';
 
+      // Lieux
+      const lieuSel = document.getElementById('form-lieu');
+      lieuSel.innerHTML = '<option value="">— Sélectionner —</option>';
+      lieux.forEach(l => { const o=document.createElement('option'); o.value=l.nom; o.textContent=l.nom; lieuSel.appendChild(o); });
+
+      // Formateurs (multi-select)
+      const formSel = document.getElementById('form-formateurs');
+      formSel.innerHTML = '';
+      formateurs.forEach(fo => { const o=document.createElement('option'); o.value=fo.nom; o.textContent=fo.nom; formSel.appendChild(o); });
+
       document.getElementById('form-id').value          = id || '';
       document.getElementById('form-categorie').value   = f?.categorieId || '';
-      document.getElementById('form-date-debut').value  = f?.dateDebut ? f.dateDebut.slice(0,16) : '';
-      document.getElementById('form-date-fin').value    = f?.dateFin   ? f.dateFin.slice(0,16)   : '';
-      document.getElementById('form-formateurs').value  = f?.formateurs || '';
-      document.getElementById('form-lieu').value        = f?.lieu      || '';
+      document.getElementById('form-date').value        = f?.dateDebut ? f.dateDebut.slice(0,10) : Fmt.isoDate(new Date());
+      document.getElementById('form-creneau').value     = f ? guessCreneau(f.dateDebut) : 'matin';
+      document.getElementById('form-lieu').value         = f?.lieu || '';
       document.getElementById('form-places').value      = f?.placesMax || 10;
       document.getElementById('form-description').value = f?.description || '';
       document.getElementById('form-statut').value      = f?.statut === 'annulee' ? 'annulee' : 'validee';
       document.getElementById('form-new-categorie').value = '';
       document.getElementById('form-new-categorie-row').style.display = 'none';
+
+      // Pré-sélection des formateurs existants
+      const existing = (f?.formateurs || '').split(',').map(s => s.trim()).filter(Boolean);
+      Array.from(formSel.options).forEach(o => { o.selected = existing.includes(o.value); });
 
       Modal.open('form-modal');
     },
@@ -314,11 +331,12 @@ const Pages = {
 
     save() {
       run(async () => {
-        const id        = document.getElementById('form-id').value;
-        const dateDebut  = document.getElementById('form-date-debut').value;
-        const dateFin    = document.getElementById('form-date-fin').value;
-        if (!dateDebut || !dateFin) { toast('Dates obligatoires', 'error'); return; }
-        if (dateFin <= dateDebut)   { toast('La fin doit être après le début', 'error'); return; }
+        const id      = document.getElementById('form-id').value;
+        const dateStr = document.getElementById('form-date').value;
+        const creneau = document.getElementById('form-creneau').value;
+        if (!dateStr) { toast('La date est obligatoire', 'error'); return; }
+
+        const { dateDebut, dateFin } = buildCreneauDates(dateStr, creneau);
 
         let categorieId = document.getElementById('form-categorie').value;
         if (categorieId === '__new__') {
@@ -329,14 +347,15 @@ const Pages = {
         }
         if (!categorieId) { toast('La catégorie est obligatoire', 'error'); return; }
 
+        const formateurs = Array.from(document.getElementById('form-formateurs').selectedOptions).map(o => o.value).join(', ');
+
         await DB.saveFormation({
           id: id || undefined,
           categorieId,
           description: document.getElementById('form-description').value.trim(),
-          dateDebut:   new Date(dateDebut).toISOString(),
-          dateFin:     new Date(dateFin).toISOString(),
-          lieu:        document.getElementById('form-lieu').value.trim(),
-          formateurs:  document.getElementById('form-formateurs').value.trim(),
+          dateDebut, dateFin,
+          lieu:        document.getElementById('form-lieu').value,
+          formateurs,
           placesMax:   parseInt(document.getElementById('form-places').value) || 10,
           statut:      document.getElementById('form-statut').value,
         });
@@ -384,6 +403,105 @@ const Pages = {
       // Marquer tout comme lu à l'ouverture
       await DB.markAllNotificationsRead();
       App._refreshNotifBadge();
+    },
+  },
+
+  /* ========================================================
+     GESTION DES LISTES — Formateurs / Lieux
+  ======================================================== */
+  lists: {
+    _current: null, // 'formateurs' | 'lieux'
+
+    openManager(type) {
+      this._current = type;
+      const title = type === 'formateurs' ? '👨‍🏫 Gérer les formateurs' : '📍 Gérer les lieux';
+      document.getElementById('list-manager-title').textContent = title;
+      document.getElementById('list-manager-input').value = '';
+      document.getElementById('list-manager-input').placeholder = type === 'formateurs' ? 'Nom du formateur…' : 'Nom du lieu…';
+      run(() => this._renderItems());
+      Modal.open('list-manager-modal');
+    },
+
+    async _renderItems() {
+      const container = document.getElementById('list-manager-items');
+      container.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px;">Chargement…</div>';
+      const items = this._current === 'formateurs' ? await DB.getFormateurs() : await DB.getLieux();
+
+      if (!items.length) {
+        container.innerHTML = '<div class="empty-state" style="padding:24px;"><p style="font-size:13px;">Liste vide</p></div>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="list-manager-row" data-id="${item.id}">
+          <input class="form-control list-edit-input" type="text" value="${item.nom.replace(/"/g,'&quot;')}" style="flex:1;">
+          <button class="btn btn-icon" style="background:var(--success-light);color:var(--success);" title="Enregistrer" onclick="Pages.lists.update('${item.id}')">✔</button>
+          <button class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);" title="Supprimer" onclick="Pages.lists.remove('${item.id}','${item.nom.replace(/'/g,"\\'")}')">🗑</button>
+        </div>
+      `).join('');
+    },
+
+    add() {
+      run(async () => {
+        const input = document.getElementById('list-manager-input');
+        const nom = input.value.trim();
+        if (!nom) { toast('Saisir un nom', 'error'); return; }
+
+        if (this._current === 'formateurs') await DB.saveFormateur({ nom });
+        else                                 await DB.saveLieu({ nom });
+
+        input.value = '';
+        toast('Ajouté ✅', 'success');
+        await this._renderItems();
+        await this._refreshFormSelects();
+      });
+    },
+
+    update(id) {
+      run(async () => {
+        const row = document.querySelector(`.list-manager-row[data-id="${id}"]`);
+        const nom = row.querySelector('.list-edit-input').value.trim();
+        if (!nom) { toast('Le nom ne peut pas être vide', 'error'); return; }
+
+        if (this._current === 'formateurs') await DB.saveFormateur({ id, nom });
+        else                                 await DB.saveLieu({ id, nom });
+
+        toast('Modifié ✅', 'success');
+        await this._renderItems();
+        await this._refreshFormSelects();
+      });
+    },
+
+    remove(id, nom) {
+      confirmDialog('Supprimer', `Supprimer « ${nom} » de la liste ?`, () => {
+        run(async () => {
+          if (this._current === 'formateurs') await DB.deleteFormateur(id);
+          else                                 await DB.deleteLieu(id);
+          toast('Supprimé', 'info');
+          await this._renderItems();
+          await this._refreshFormSelects();
+        });
+      });
+    },
+
+    // Recharger les <select> du formulaire formation si la modale est ouverte derrière
+    async _refreshFormSelects() {
+      const lieuSel = document.getElementById('form-lieu');
+      const formSel = document.getElementById('form-formateurs');
+      if (this._current === 'lieux' && lieuSel) {
+        const current = lieuSel.value;
+        const lieux = await DB.getLieux();
+        lieuSel.innerHTML = '<option value="">— Sélectionner —</option>';
+        lieux.forEach(l => { const o=document.createElement('option'); o.value=l.nom; o.textContent=l.nom; lieuSel.appendChild(o); });
+        lieuSel.value = current;
+      }
+      if (this._current === 'formateurs' && formSel) {
+        const selected = Array.from(formSel.selectedOptions).map(o => o.value);
+        const formateurs = await DB.getFormateurs();
+        formSel.innerHTML = '';
+        formateurs.forEach(fo => { const o=document.createElement('option'); o.value=fo.nom; o.textContent=fo.nom; formSel.appendChild(o); });
+        Array.from(formSel.options).forEach(o => { o.selected = selected.includes(o.value); });
+      }
     },
   },
 
