@@ -41,6 +41,67 @@ html, body { height: 100%; font-family: 'Segoe UI', system-ui, -apple-system, sa
 .topbar-logo .logo-text { color: white; font-size: 15px; font-weight: 700; line-height: 1.2; }
 .topbar-spacer { flex: 1; }
 
+/* Bouton menu hamburger */
+.menu-btn {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  color: white;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.menu-btn:hover { background: rgba(255,255,255,0.18); }
+
+/* Menu latéral gauche */
+.side-menu-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.3);
+  z-index: 1500;
+  display: none;
+}
+.side-menu-overlay.open { display: block; }
+.side-menu {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 100%; max-width: 300px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  z-index: 1501;
+  display: flex; flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+.side-menu-overlay.open .side-menu { transform: translateX(0); }
+.side-menu-header {
+  padding: 18px 20px;
+  background: var(--sidebar-bg);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.side-menu-header .title { color: white; font-size: 15px; font-weight: 700; }
+.side-menu-body { flex: 1; overflow-y: auto; padding: 12px; }
+.side-menu-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+  margin-bottom: 4px;
+}
+.side-menu-item:hover { background: var(--bg); }
+.side-menu-item.active { background: var(--primary-light); color: var(--primary); font-weight: 700; }
+.side-menu-item .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+
 /* Bouton notifications */
 .notif-bell {
   position: relative;
@@ -166,6 +227,11 @@ textarea.form-control { resize: vertical; min-height: 70px; }
 
 /* ===== NO-CONFIG SCREEN ===== */
 #no-config-screen { position: fixed; inset: 0; background: linear-gradient(135deg,#1E293B,#0F172A); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+
+/* ===== CONFIG STATUS (paramètres) ===== */
+.config-status { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; }
+.config-status.connected { background: var(--success-light); color: var(--success); }
+.config-status.disconnected { background: var(--danger-light); color: var(--danger); }
 
 /* ===== PLANNING ===== */
 .planning-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
