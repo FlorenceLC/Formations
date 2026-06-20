@@ -1,6 +1,6 @@
-# Formations — Planning
+# Formations FTSI — Planning
 
-Application web de planning partagé des formations.
+Application web de planning partagé des formations, **sans connexion ni mot de passe**.
 Tout le monde dans l'équipe voit le même planning en temps réel via Supabase.
 
 ---
@@ -16,7 +16,7 @@ Tout le monde dans l'équipe voit le même planning en temps réel via Supabase.
 
 1. Dans Supabase : **SQL Editor** → **New query**
 2. Copiez tout le contenu de `sql/schema.sql`, collez-le, cliquez **Run**
-3. Les tables et les 43 catégories sont créées automatiquement
+3. Les tables et les 43 catégories FTSI sont créées automatiquement
 
 ### 3. Récupérer les clés
 
@@ -63,7 +63,7 @@ Pour changer de base Supabase plus tard : ouvrir le panneau notifications (🔔)
 ## 📁 Structure
 
 ```
-formations/
+ftsi/
 ├── index.html          → page unique de l'application
 ├── css/theme.css        → styles (thème clair, responsive mobile/PC)
 ├── js/

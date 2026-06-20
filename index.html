@@ -46,6 +46,7 @@
 
   <!-- TOPBAR -->
   <div id="topbar">
+    <button class="menu-btn" id="menu-btn-open" title="Menu">☰</button>
     <div class="topbar-logo">
       <span class="logo-icon">🦅</span>
       <div class="logo-text">Formations FTSI</div>
@@ -180,8 +181,62 @@
       <button class="modal-close" id="notif-panel-close">✕</button>
     </div>
     <div class="notif-panel-body" id="notif-panel-body"></div>
-    <div class="notif-panel-footer">
-      <button class="btn btn-ghost" id="btn-change-config" style="width:100%;font-size:11px;">⚙️ Changer la connexion Supabase</button>
+  </div>
+</div>
+
+<!-- ===== MENU LATÉRAL (gauche) ===== -->
+<div class="side-menu-overlay" id="side-menu-overlay">
+  <div class="side-menu">
+    <div class="side-menu-header">
+      <span class="title">🦅 Formations FTSI</span>
+      <button class="modal-close" id="menu-btn-close">✕</button>
+    </div>
+    <div class="side-menu-body">
+      <button class="side-menu-item active" data-page="planning">
+        <span class="nav-icon">📅</span> Planning
+      </button>
+      <button class="side-menu-item" id="menu-btn-settings">
+        <span class="nav-icon">⚙️</span> Paramètres
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : PARAMÈTRES / CONFIGURATION SUPABASE ===== -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ Paramètres — Connexion Supabase</span>
+      <button class="modal-close" onclick="Modal.close('settings-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="settings-status" class="config-status disconnected" style="margin-bottom:18px;">
+        ⚠️ Non connecté
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">URL du projet Supabase</label>
+        <input id="settings-url" class="form-control" type="url" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off">
+        <div class="form-hint">Supabase → Settings → API → Project URL</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Clé anon (publique)</label>
+        <input id="settings-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Supabase → Settings → API → anon public</div>
+      </div>
+
+      <div id="settings-error" style="display:none;background:var(--danger-light);color:var(--danger);border-radius:8px;padding:12px 14px;font-size:12px;margin-top:10px;line-height:1.5;"></div>
+
+      <div style="margin-top:20px;padding:14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
+        <strong style="color:var(--text);">Si la connexion échoue (erreur 404 ou 401) :</strong><br>
+        1. Vérifiez que le script <strong>sql/schema.sql</strong> a bien été exécuté dans Supabase → SQL Editor<br>
+        2. Vérifiez l'URL (pas de slash final) et que la clé est bien la clé <strong>anon public</strong><br>
+        3. Cliquez sur <strong>Tester la connexion</strong> ci-dessous
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Pages.settings.test()">🔌 Tester la connexion</button>
+      <button class="btn btn-primary" onclick="Pages.settings.save()">💾 Enregistrer</button>
     </div>
   </div>
 </div>
