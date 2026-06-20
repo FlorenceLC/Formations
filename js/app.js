@@ -1,136 +1,30 @@
 /**
- * app.js — État global, navigation, auth, utilitaires UI
- * Toutes les opérations DB sont async/await.
+ * app.js — Initialisation, utilitaires UI (toast, modal, confirm, dates)
+ * Pas d'authentification, pas de navigation entre pages : Planning uniquement.
  */
 
-/* ===== STATE ===== */
 const App = {
-  currentUser: null,
-  currentPage: 'dashboard',
-  _sessionKey: 'ftsi_session_user',
-
   async init() {
-    // 1. Vérifier si Supabase est configuré
     if (!DB.isConfigured()) {
       showNoConfigScreen();
       return;
     }
-    // 2. Essai de restauration de session (userId stocké en sessionStorage)
-    const savedId = sessionStorage.getItem(this._sessionKey);
-    if (savedId) {
-      try {
-        const user = await DB.getUserById(savedId);
-        if (user) { this._startApp(this._mapUser(user)); return; }
-      } catch (e) {
-        console.warn('Session restore failed:', e);
-      }
-    }
-    this.showLogin();
-  },
-
-  showLogin() {
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
     hideNoConfigScreen();
+    Pages.planning.render();
+    this._refreshNotifBadge();
+    // Rafraîchir le badge de notifications périodiquement
+    setInterval(() => this._refreshNotifBadge(), 30000);
   },
 
-  async doLogin(username, password) {
-    setLoginLoading(true);
+  async _refreshNotifBadge() {
     try {
-      const raw = await DB.authenticate(username, password);
-      if (!raw) {
-        setLoginLoading(false);
-        showLoginError('Identifiant ou mot de passe incorrect.');
-        return;
-      }
-      const user = this._mapUser(raw);
-      sessionStorage.setItem(this._sessionKey, user.id);
-      setLoginLoading(false);
-      this._startApp(user);
-    } catch (e) {
-      setLoginLoading(false);
-      showLoginError('Erreur de connexion à la base de données. Vérifiez la configuration Supabase.');
-      console.error(e);
-    }
+      const count = await DB.countUnread();
+      const badge = document.getElementById('notif-badge');
+      if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = 'flex'; }
+      else { badge.style.display = 'none'; }
+    } catch (e) { /* silencieux si pas encore configuré */ }
   },
-
-  _startApp(user) {
-    this.currentUser = user;
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    this.renderSidebar();
-    this.navigate('dashboard');
-  },
-
-  _mapUser(raw) {
-    // Normaliser peu importe si les clés viennent de Supabase (snake_case) ou du seed
-    return {
-      id:              raw.id,
-      username:        raw.username,
-      nom:             raw.nom,
-      prenom:          raw.prenom,
-      email:           raw.email || '',
-      couleur:         raw.couleur || '#2563EB',
-      isAdmin:         raw.isAdmin     ?? raw.is_admin     ?? false,
-      isConfigurateur: raw.isConfigurateur ?? raw.is_configurateur ?? false,
-    };
-  },
-
-  logout() {
-    this.currentUser = null;
-    sessionStorage.removeItem(this._sessionKey);
-    this.showLogin();
-  },
-
-  navigate(page) {
-    this.currentPage = page;
-    document.querySelectorAll('.nav-item').forEach(el =>
-      el.classList.toggle('active', el.dataset.page === page));
-    document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-    const pageEl = document.getElementById(`page-${page}`);
-    if (pageEl) pageEl.classList.add('active');
-    const titles = {
-      dashboard: 'Tableau de bord',
-      planning:  'Planning',
-      formations:'Formations',
-      catalogue: 'Catalogue',
-      admin:     'Administration',
-      profil:    'Mon profil',
-    };
-    document.getElementById('topbar-title').textContent = titles[page] || page;
-    document.getElementById('content').scrollTop = 0;
-    Pages[page]?.render();
-    if (window.innerWidth <= 768) this.closeSidebar();
-  },
-
-  renderSidebar() {
-    const u = this.currentUser;
-    const initials = (u.prenom?.[0] || '') + (u.nom?.[0] || '');
-    ['sidebar-avatar', 'topbar-avatar'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.textContent = initials.toUpperCase(); el.style.background = u.couleur; }
-    });
-    document.getElementById('sidebar-user-name').textContent  = `${u.prenom} ${u.nom}`;
-    document.getElementById('sidebar-user-role').textContent  = u.isConfigurateur ? '🔧 Configurateur' : (u.isAdmin ? '⭐ Administrateur' : 'Collaborateur');
-    document.getElementById('topbar-user-name').textContent   = `${u.prenom} ${u.nom}`;
-    document.getElementById('nav-admin').style.display        = u.isAdmin ? 'flex' : 'none';
-    const cfgBtn = document.getElementById('tab-btn-config');
-    if (cfgBtn) cfgBtn.style.display = u.isConfigurateur ? 'inline-flex' : 'none';
-  },
-
-  openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebar-overlay').classList.add('open'); },
-  closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); },
 };
-
-/* ===== LOGIN HELPERS ===== */
-function setLoginLoading(on) {
-  const btn = document.getElementById('login-submit-btn');
-  if (btn) { btn.disabled = on; btn.textContent = on ? 'Connexion…' : 'Se connecter'; }
-}
-function showLoginError(msg) {
-  const el = document.getElementById('login-error');
-  if (el) { el.textContent = '⚠  ' + msg; el.style.display = 'block'; }
-}
 
 /* ===== TOAST ===== */
 function toast(msg, type = 'info') {
@@ -144,9 +38,8 @@ function toast(msg, type = 'info') {
 
 /* ===== MODAL ===== */
 const Modal = {
-  open(id)    { document.getElementById(id)?.classList.add('open'); },
-  close(id)   { document.getElementById(id)?.classList.remove('open'); },
-  closeAll()  { document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); },
+  open(id)   { document.getElementById(id)?.classList.add('open'); },
+  close(id)  { document.getElementById(id)?.classList.remove('open'); },
 };
 
 /* ===== CONFIRM ===== */
@@ -167,58 +60,54 @@ const Fmt = {
   monthYear(d)   { return d.toLocaleDateString('fr-FR', { month:'long', year:'numeric' }); },
   dureeH(i1, i2) { if (!i1||!i2) return '—'; const h=(new Date(i2)-new Date(i1))/3600000; return h%1===0?`${h}h`:`${h.toFixed(1)}h`; },
   isoDate(d)     { return d.toISOString().slice(0,10); },
+  relativeTime(iso) {
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return 'à l\'instant';
+    if (diff < 3600) return `il y a ${Math.floor(diff/60)} min`;
+    if (diff < 86400) return `il y a ${Math.floor(diff/3600)} h`;
+    if (diff < 604800) return `il y a ${Math.floor(diff/86400)} j`;
+    return new Date(iso).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  },
+  // Numéro de semaine ISO 8601
+  weekNumber(d) {
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayNum = (date.getDay() + 6) % 7; // lundi = 0
+    date.setDate(date.getDate() - dayNum + 3); // jeudi de cette semaine
+    const firstThursday = new Date(date.getFullYear(), 0, 4);
+    const diff = date - firstThursday;
+    return 1 + Math.round(diff / (7 * 24 * 3600 * 1000));
+  },
 };
 
 /* ===== STATUS ===== */
 const STATUS = {
-  validee: { label: 'Validée',  cls: 'badge-success' },
-  annulee: { label: 'Annulée',  cls: 'badge-danger'  },
+  validee: { label: 'Validée', cls: 'badge-success' },
+  annulee: { label: 'Annulée', cls: 'badge-danger'  },
 };
 function statusBadge(s) {
   const st = STATUS[s] || { label: s, cls: 'badge-gray' };
   return `<span class="badge ${st.cls}">${st.label}</span>`;
 }
 
-/* ===== LOADING OVERLAY ===== */
-function showLoading(msg = 'Chargement…') {
-  let el = document.getElementById('loading-overlay');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'loading-overlay';
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;z-index:8888;';
-    el.innerHTML = `<div style="background:#fff;border-radius:12px;padding:24px 32px;font-weight:600;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.15);">⏳ ${msg}</div>`;
-    document.body.appendChild(el);
-  }
-}
-function hideLoading() {
-  document.getElementById('loading-overlay')?.remove();
-}
+/* ===== NOTIFICATION TYPE ICONS ===== */
+const NOTIF_ICONS = {
+  creation:     '🆕',
+  modification: '✏️',
+  suppression:  '🗑',
+  annulation:   '⚠️',
+};
 
 /* ===== DOM READY ===== */
 document.addEventListener('DOMContentLoaded', () => {
 
-  // Login form
-  document.getElementById('login-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    document.getElementById('login-error').style.display = 'none';
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-    await App.doLogin(username, password);
+  // Bouton notifications
+  document.getElementById('notif-bell-btn').addEventListener('click', () => Pages.notifications.open());
+  document.getElementById('notif-panel-close').addEventListener('click', () => Pages.notifications.close());
+  document.getElementById('notif-panel-overlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) Pages.notifications.close();
   });
 
-  // Sidebar nav
-  document.querySelectorAll('.nav-item[data-page]').forEach(el =>
-    el.addEventListener('click', () => App.navigate(el.dataset.page)));
-
-  // Logout
-  document.getElementById('btn-logout').addEventListener('click', () =>
-    confirmDialog('Déconnexion', 'Voulez-vous vous déconnecter ?', () => App.logout()));
-
-  // Mobile sidebar
-  document.getElementById('topbar-menu-btn').addEventListener('click', () => App.openSidebar());
-  document.getElementById('sidebar-overlay').addEventListener('click', () => App.closeSidebar());
-
-  // Close modals on backdrop
+  // Close modals on backdrop click
   document.querySelectorAll('.modal-overlay').forEach(overlay =>
     overlay.addEventListener('click', e => { if (e.target === overlay) Modal.close(overlay.id); }));
 
@@ -226,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('confirm-no').addEventListener('click', () =>
     document.getElementById('confirm-overlay').style.display = 'none');
 
-  // Écran de config Supabase (si pas encore configuré)
+  // Écran de configuration Supabase (1ère utilisation)
   const cfgForm = document.getElementById('no-config-form');
   if (cfgForm) {
     cfgForm.addEventListener('submit', async e => {
@@ -240,15 +129,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const ok = await DB.ping().catch(() => false);
       if (ok) {
         hideNoConfigScreen();
-        App.showLogin();
+        App.init();
       } else {
-        btn.disabled = false; btn.textContent = 'Se connecter';
-        alert('❌ Connexion impossible. Vérifiez l\'URL et la clé anon Supabase, et que le schéma SQL a bien été exécuté.');
+        btn.disabled = false; btn.textContent = '🔌 Se connecter à Supabase';
+        alert('❌ Connexion impossible. Vérifiez l\'URL, la clé anon, et que le schéma SQL a bien été exécuté.');
         DB.saveSupabaseConfig({});
       }
     });
   }
 
-  // Init app
+  // Lien "changer la configuration" (optionnel, accessible discrètement)
+  const changeCfgBtn = document.getElementById('btn-change-config');
+  if (changeCfgBtn) {
+    changeCfgBtn.addEventListener('click', () => {
+      confirmDialog('Changer de base', 'Voulez-vous reconfigurer la connexion à Supabase ?', () => {
+        DB.saveSupabaseConfig({});
+        showNoConfigScreen();
+      });
+    });
+  }
+
   App.init();
 });

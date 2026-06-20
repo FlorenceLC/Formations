@@ -1,12 +1,11 @@
 /**
- * db.js — Couche d'accès aux données
- * 100% Supabase REST API — aucun localStorage pour les données métier.
- * La configuration Supabase (URL + clé) est le seul élément stocké en local.
+ * db.js — Couche d'accès Supabase
+ * Pas d'authentification. Pas de localStorage pour les données métier.
+ * Seule la config Supabase (URL + clé) est stockée en local, par appareil.
  */
 
 /* =========================================================
-   CONFIG SUPABASE
-   Seule chose persistée en localStorage : l'URL et la clé anon.
+   CONFIG SUPABASE (seul élément en localStorage)
 ========================================================= */
 const SupabaseConfig = {
   _key: 'ftsi_supabase_config',
@@ -88,18 +87,6 @@ const Supa = {
     if (!r.ok) throw new Error(`DELETE ${table} → ${r.status} ${await r.text()}`);
   },
 
-  async rpc(fn, params = {}) {
-    const { url, anonKey } = this._cfg();
-    const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/rpc/${fn}`, {
-      method: 'POST',
-      headers: this._headers(),
-      body: JSON.stringify(params),
-    });
-    if (!r.ok) throw new Error(`RPC ${fn} → ${r.status} ${await r.text()}`);
-    return r.json();
-  },
-
-  // Test rapide de connexion
   async ping() {
     const r = await fetch(this._url('categories', 'limit=1'), {
       method: 'GET',
@@ -110,18 +97,6 @@ const Supa = {
 };
 
 /* =========================================================
-   HASH MOT DE PASSE (simple, côté client)
-========================================================= */
-function hashPassword(pwd) {
-  let hash = 0;
-  for (let i = 0; i < pwd.length; i++) {
-    hash = ((hash << 5) - hash) + pwd.charCodeAt(i);
-    hash |= 0;
-  }
-  return 'h_' + Math.abs(hash).toString(36) + '_' + pwd.length;
-}
-
-/* =========================================================
    GÉNÉRATEUR D'ID
 ========================================================= */
 function newId() {
@@ -129,7 +104,7 @@ function newId() {
 }
 
 /* =========================================================
-   DB — API PUBLIQUE (toutes les fonctions sont async)
+   DB — API PUBLIQUE (async)
 ========================================================= */
 const DB = {
 
@@ -138,72 +113,6 @@ const DB = {
   saveSupabaseConfig: (cfg) => SupabaseConfig.set(cfg),
   isConfigured: () => SupabaseConfig.isReady(),
   ping: () => Supa.ping(),
-
-  // ---- USERS ----
-  async getUsers() {
-    return Supa.select('users', 'is_active=eq.true&order=nom.asc');
-  },
-
-  async getUserById(id) {
-    const rows = await Supa.select('users', `id=eq.${id}&limit=1`);
-    return rows[0] || null;
-  },
-
-  async getUserByUsername(username) {
-    const uname = (username || '').trim().toLowerCase();
-    const rows = await Supa.select('users', `username=ilike.${uname}&limit=1`);
-    return rows[0] || null;
-  },
-
-  async authenticate(username, password) {
-    const uname = (username || '').trim().toLowerCase();
-    const hash = hashPassword(password);
-    const rows = await Supa.select('users',
-      `username=ilike.${encodeURIComponent(uname)}&password_hash=eq.${encodeURIComponent(hash)}&is_active=eq.true&limit=1`
-    );
-    return rows[0] || null;
-  },
-
-  async saveUser(user) {
-    const row = {
-      id: user.id || newId(),
-      username: user.username,
-      password_hash: user.passwordHash || user.password_hash,
-      nom: user.nom,
-      prenom: user.prenom,
-      email: user.email || '',
-      couleur: user.couleur || '#2563EB',
-      is_admin: user.isAdmin || user.is_admin || false,
-      is_configurateur: user.isConfigurateur || user.is_configurateur || false,
-      is_active: user.isActive !== false && user.is_active !== false,
-    };
-    const result = await Supa.upsert('users', row);
-    return this._mapUser(result);
-  },
-
-  async changePassword(userId, newPassword) {
-    await Supa.update('users', userId, { password_hash: hashPassword(newPassword) });
-  },
-
-  async deleteUser(id) {
-    await Supa.update('users', id, { is_active: false });
-  },
-
-  _mapUser(row) {
-    if (!row) return null;
-    return {
-      id: row.id,
-      username: row.username,
-      passwordHash: row.password_hash,
-      nom: row.nom,
-      prenom: row.prenom,
-      email: row.email || '',
-      couleur: row.couleur || '#2563EB',
-      isAdmin: row.is_admin || false,
-      isConfigurateur: row.is_configurateur || false,
-      isActive: row.is_active !== false,
-    };
-  },
 
   // ---- CATEGORIES ----
   async getCategories() {
@@ -215,102 +124,78 @@ const DB = {
     return Supa.upsert('categories', row);
   },
 
-  async deleteCategory(id) {
-    return Supa.delete('categories', id);
-  },
-
-  // ---- CATALOGUE ----
-  async getCatalogue() {
-    return Supa.select('catalogue', 'order=titre.asc');
-  },
-
-  async saveCatalogueItem(item) {
-    const row = {
-      id: item.id || newId(),
-      titre: item.titre,
-      description: item.description || '',
-      categorie_id: item.categorieId || item.categorie_id || null,
-      duree_heures: item.dureeHeures || item.duree_heures || 0,
-    };
-    return Supa.upsert('catalogue', row);
-  },
-
-  async deleteCatalogueItem(id) {
-    return Supa.delete('catalogue', id);
-  },
-
   // ---- FORMATIONS ----
   async getFormations(filters = {}) {
     let query = 'order=date_debut.asc';
-
-    if (filters.categorieId) query += `&categorie_id=eq.${filters.categorieId}`;
-    if (filters.statut)      query += `&statut=eq.${filters.statut}`;
-    if (filters.dateFrom)    query += `&date_debut=gte.${filters.dateFrom}`;
-    if (filters.dateTo)      query += `&date_debut=lte.${filters.dateTo}`;
-
-    let rows = await Supa.select('formations', query);
-
-    // Filtre texte côté client (PostgREST ilike multi-colonnes = complexe)
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      // Récupérer les catégories pour chercher par nom
-      let cats = [];
-      try { cats = await this.getCategories(); } catch {}
-      rows = rows.filter(f => {
-        const catName = (cats.find(c => c.id === f.categorie_id)?.nom || '').toLowerCase();
-        return catName.includes(q)
-          || (f.lieu || '').toLowerCase().includes(q)
-          || (f.formateurs || '').toLowerCase().includes(q);
-      });
-    }
-
-    // Enrichir avec nb inscrits
-    const allInscrits = await Supa.select('inscriptions', 'statut=eq.inscrit');
-    return rows.map(f => ({
-      ...this._mapFormation(f),
-      inscritsCount: allInscrits.filter(i => i.formation_id === f.id).length,
-    }));
+    if (filters.dateFrom) query += `&date_debut=gte.${filters.dateFrom}`;
+    if (filters.dateTo)   query += `&date_debut=lte.${filters.dateTo}`;
+    const rows = await Supa.select('formations', query);
+    return rows.map(this._mapFormation);
   },
 
   async getFormationById(id) {
     const rows = await Supa.select('formations', `id=eq.${id}&limit=1`);
-    if (!rows[0]) return null;
-    const inscrits = await Supa.select('inscriptions', `formation_id=eq.${id}&statut=eq.inscrit`);
-    return { ...this._mapFormation(rows[0]), inscritsCount: inscrits.length };
+    return rows[0] ? this._mapFormation(rows[0]) : null;
   },
 
   async saveFormation(f) {
+    const isEdit = !!f.id;
     const row = {
       id: f.id || newId(),
-      categorie_id: f.categorieId || f.categorie_id || null,
+      categorie_id: f.categorieId || null,
       description: f.description || '',
-      date_debut: f.dateDebut || f.date_debut || null,
-      date_fin: f.dateFin || f.date_fin || null,
+      date_debut: f.dateDebut || null,
+      date_fin: f.dateFin || null,
       lieu: f.lieu || '',
       formateurs: f.formateurs || '',
-      places_max: f.placesMax || f.places_max || 10,
+      places_max: f.placesMax || 10,
       statut: f.statut || 'validee',
-      created_by: f.createdBy || f.created_by || null,
+      updated_at: new Date().toISOString(),
     };
     const result = await Supa.upsert('formations', row);
-    return this._mapFormation(result);
+    const mapped = this._mapFormation(result);
+
+    // Notification de création / modification
+    const cats = await this.getCategories();
+    const catName = cats.find(c => c.id === mapped.categorieId)?.nom || 'Formation';
+    const dateStr = mapped.dateDebut ? new Date(mapped.dateDebut).toLocaleDateString('fr-FR') : '';
+    await this.addNotification({
+      formationId: mapped.id,
+      type: isEdit ? 'modification' : 'creation',
+      message: isEdit
+        ? `Formation modifiée : ${catName} (${dateStr})`
+        : `Nouvelle formation : ${catName} (${dateStr})`,
+    });
+
+    return mapped;
   },
 
   async deleteFormation(id) {
+    const f = await this.getFormationById(id);
+    const cats = await this.getCategories();
+    const catName = cats.find(c => c.id === f?.categorieId)?.nom || 'Formation';
+    const dateStr = f?.dateDebut ? new Date(f.dateDebut).toLocaleDateString('fr-FR') : '';
     await Supa.delete('formations', id);
+    await this.addNotification({
+      formationId: id,
+      type: 'suppression',
+      message: `Formation supprimée : ${catName} (${dateStr})`,
+    });
   },
 
-  async duplicateFormation(id, createdBy) {
+  async setStatut(id, statut) {
     const f = await this.getFormationById(id);
-    if (!f) return null;
-    const copy = {
-      ...f,
-      id: newId(),
-      statut: 'validee',
-      createdBy,
-    };
-    delete copy.inscritsCount;
-    return this.saveFormation(copy);
+    const cats = await this.getCategories();
+    const catName = cats.find(c => c.id === f?.categorieId)?.nom || 'Formation';
+    const dateStr = f?.dateDebut ? new Date(f.dateDebut).toLocaleDateString('fr-FR') : '';
+    await Supa.update('formations', id, { statut, updated_at: new Date().toISOString() });
+    await this.addNotification({
+      formationId: id,
+      type: statut === 'annulee' ? 'annulation' : 'modification',
+      message: statut === 'annulee'
+        ? `Formation annulée : ${catName} (${dateStr})`
+        : `Formation validée : ${catName} (${dateStr})`,
+    });
   },
 
   _mapFormation(row) {
@@ -325,100 +210,58 @@ const DB = {
       formateurs: row.formateurs || '',
       placesMax: row.places_max || 10,
       statut: row.statut || 'validee',
-      createdBy: row.created_by,
-      inscritsCount: row.inscritsCount || 0,
     };
   },
 
-  // ---- INSCRIPTIONS ----
-  async getInscriptions(formationId) {
-    const rows = await Supa.select('inscriptions',
-      `formation_id=eq.${formationId}&statut=eq.inscrit`);
-    // Enrichir avec les infos utilisateur
-    const users = await this.getUsers();
-    return rows.map(i => ({
-      ...i,
-      user: users.find(u => u.id === i.user_id) || null,
-    }));
+  // ---- NOTIFICATIONS ----
+  async getNotifications(limit = 50) {
+    return Supa.select('notifications', `order=created_at.desc&limit=${limit}`);
   },
 
-  async getUserFormations(userId) {
-    const inscrits = await Supa.select('inscriptions',
-      `user_id=eq.${userId}&statut=eq.inscrit`);
-    if (!inscrits.length) return [];
-    const ids = inscrits.map(i => `"${i.formation_id}"`).join(',');
-    const rows = await Supa.select('formations',
-      `id=in.(${inscrits.map(i => i.formation_id).join(',')})&order=date_debut.asc`);
-    const allInscrits = await Supa.select('inscriptions', 'statut=eq.inscrit');
-    return rows.map(f => ({
-      ...this._mapFormation(f),
-      inscritsCount: allInscrits.filter(i => i.formation_id === f.id).length,
-    }));
+  async countUnread() {
+    const rows = await Supa.select('notifications', 'lue=eq.false&select=id');
+    return rows.length;
   },
 
-  async isInscrit(formationId, userId) {
-    const rows = await Supa.select('inscriptions',
-      `formation_id=eq.${formationId}&user_id=eq.${userId}&statut=eq.inscrit&limit=1`);
-    return rows.length > 0;
-  },
-
-  async inscrire(formationId, userId) {
-    // Upsert : si la ligne existe (annulée), on la remet en "inscrit"
-    await Supa.upsert('inscriptions', {
+  async addNotification({ formationId, type, message }) {
+    return Supa.insert('notifications', {
       id: newId(),
-      formation_id: formationId,
-      user_id: userId,
-      statut: 'inscrit',
+      formation_id: formationId || null,
+      type,
+      message,
+      lue: false,
     });
   },
 
-  async desinscrire(formationId, userId) {
-    const rows = await Supa.select('inscriptions',
-      `formation_id=eq.${formationId}&user_id=eq.${userId}&limit=1`);
-    if (rows[0]) await Supa.update('inscriptions', rows[0].id, { statut: 'annulee' });
+  async markNotificationRead(id) {
+    await Supa.update('notifications', id, { lue: true });
   },
 
-  // ---- STATS UTILISATEUR ----
-  async getUserStats(userId) {
-    const now = new Date().toISOString();
-    const formations = await this.getUserFormations(userId);
-    const aVenir  = formations.filter(f => f.dateDebut >= now);
-    const passees = formations.filter(f => f.dateDebut && f.dateDebut < now);
-    const heures  = passees.reduce((acc, f) => {
-      if (f.dateDebut && f.dateFin) {
-        return acc + (new Date(f.dateFin) - new Date(f.dateDebut)) / 3600000;
-      }
-      return acc;
-    }, 0);
-    return {
-      aVenir:   aVenir.length,
-      passees:  passees.length,
-      heures:   Math.round(heures * 10) / 10,
-    };
+  async markAllNotificationsRead() {
+    const unread = await Supa.select('notifications', 'lue=eq.false&select=id');
+    await Promise.all(unread.map(n => Supa.update('notifications', n.id, { lue: true })));
   },
 };
 
 /* =========================================================
-   ÉCRAN "PAS DE CONFIG" — affiché si Supabase non configuré
+   ÉCRAN "PAS DE CONFIG"
 ========================================================= */
 function showNoConfigScreen() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display        = 'none';
+  document.getElementById('app').style.display = 'none';
   const el = document.getElementById('no-config-screen');
   if (el) el.style.display = 'flex';
 }
-
 function hideNoConfigScreen() {
   const el = document.getElementById('no-config-screen');
   if (el) el.style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
 }
 
 /* =========================================================
    EXPORT
 ========================================================= */
-window.DB           = DB;
+window.DB = DB;
 window.SupabaseConfig = SupabaseConfig;
-window.hashPassword = hashPassword;
-window.newId        = newId;
+window.newId = newId;
 window.showNoConfigScreen = showNoConfigScreen;
 window.hideNoConfigScreen = hideNoConfigScreen;
