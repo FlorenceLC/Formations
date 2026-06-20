@@ -52,6 +52,9 @@
       <div class="logo-text">Formations FTSI</div>
     </div>
     <div class="topbar-spacer"></div>
+    <button class="notif-bell" id="refresh-btn" title="Rafraîchir">
+      🔄
+    </button>
     <button class="notif-bell" id="notif-bell-btn" title="Notifications">
       🔔
       <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
@@ -128,19 +131,26 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Date et heure de début <span style="color:var(--danger)">*</span></label>
-          <input id="form-date-debut" class="form-control" type="datetime-local">
+          <label class="form-label">Date <span style="color:var(--danger)">*</span></label>
+          <input id="form-date" class="form-control" type="date">
         </div>
         <div class="form-group">
-          <label class="form-label">Date et heure de fin <span style="color:var(--danger)">*</span></label>
-          <input id="form-date-fin" class="form-control" type="datetime-local">
+          <label class="form-label">Créneau <span style="color:var(--danger)">*</span></label>
+          <select id="form-creneau" class="form-control">
+            <option value="matin">🌅 Matin (8h–12h)</option>
+            <option value="aprem">☀️ Après-midi (13h–17h)</option>
+            <option value="nuit">🌙 Nuit (19h–1h)</option>
+          </select>
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Lieu</label>
-          <input id="form-lieu" class="form-control" type="text" placeholder="Salle, bâtiment, stand…">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Lieu</span>
+            <button type="button" class="manage-link" onclick="Pages.lists.openManager('lieux')">✏️ Gérer</button>
+          </label>
+          <select id="form-lieu" class="form-control"></select>
         </div>
         <div class="form-group">
           <label class="form-label">Places maximum</label>
@@ -149,8 +159,12 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Formateurs</label>
-        <input id="form-formateurs" class="form-control" type="text" placeholder="Noms des formateurs">
+        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Formateurs</span>
+          <button type="button" class="manage-link" onclick="Pages.lists.openManager('formateurs')">✏️ Gérer</button>
+        </label>
+        <select id="form-formateurs" class="form-control" multiple size="4"></select>
+        <div class="form-hint">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs formateurs</div>
       </div>
 
       <div class="form-group">
@@ -195,6 +209,8 @@
       <button class="side-menu-item active" data-page="planning">
         <span class="nav-icon">📅</span> Planning
       </button>
+    </div>
+    <div class="side-menu-bottom">
       <button class="side-menu-item" id="menu-btn-settings">
         <span class="nav-icon">⚙️</span> Paramètres
       </button>
@@ -237,6 +253,26 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="Pages.settings.test()">🔌 Tester la connexion</button>
       <button class="btn btn-primary" onclick="Pages.settings.save()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : Gérer formateurs / lieux ===== -->
+<div class="modal-overlay" id="list-manager-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title" id="list-manager-title">Gérer la liste</span>
+      <button class="modal-close" onclick="Modal.close('list-manager-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input id="list-manager-input" class="form-control" type="text" placeholder="Nom…" style="flex:1;">
+        <button class="btn btn-primary btn-sm" onclick="Pages.lists.add()" style="flex-shrink:0;">➕ Ajouter</button>
+      </div>
+      <div id="list-manager-items"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('list-manager-modal')">Fermer</button>
     </div>
   </div>
 </div>

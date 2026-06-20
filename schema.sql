@@ -28,6 +28,18 @@ create table if not exists public.formations (
   updated_at timestamptz default now()
 );
 
+-- ===== TABLE: lieux =====
+create table if not exists public.lieux (
+  id text primary key,
+  nom text unique not null
+);
+
+-- ===== TABLE: formateurs =====
+create table if not exists public.formateurs (
+  id text primary key,
+  nom text unique not null
+);
+
 -- ===== TABLE: notifications =====
 -- Historique des créations / modifications / suppressions / annulations
 create table if not exists public.notifications (
@@ -45,6 +57,8 @@ create table if not exists public.notifications (
 alter table public.categories enable row level security;
 alter table public.formations enable row level security;
 alter table public.notifications enable row level security;
+alter table public.lieux enable row level security;
+alter table public.formateurs enable row level security;
 
 drop policy if exists "allow all categories" on public.categories;
 create policy "allow all categories" on public.categories for all using (true) with check (true);
@@ -54,6 +68,12 @@ create policy "allow all formations" on public.formations for all using (true) w
 
 drop policy if exists "allow all notifications" on public.notifications;
 create policy "allow all notifications" on public.notifications for all using (true) with check (true);
+
+drop policy if exists "allow all lieux" on public.lieux;
+create policy "allow all lieux" on public.lieux for all using (true) with check (true);
+
+drop policy if exists "allow all formateurs" on public.formateurs;
+create policy "allow all formateurs" on public.formateurs for all using (true) with check (true);
 
 -- Index pour les performances
 create index if not exists idx_formations_dates on public.formations(date_debut, date_fin);
@@ -106,4 +126,23 @@ insert into public.categories (id, nom, couleur) values
   ('cat_41','TIKKA - RECYCLAGE','#2563EB'),
   ('cat_42','TIKKA - HABILITATION','#DC2626'),
   ('cat_43','ADMINISTRATIF','#16A34A')
+on conflict (id) do nothing;
+
+-- ============================================================
+-- DONNÉES INITIALES — Lieux
+-- ============================================================
+insert into public.lieux (id, nom) values
+  ('lieu_1','DZ'),
+  ('lieu_2','Stains'),
+  ('lieu_3','Bièvre')
+on conflict (id) do nothing;
+
+-- ============================================================
+-- DONNÉES INITIALES — Formateurs
+-- ============================================================
+insert into public.formateurs (id, nom) values
+  ('form_1','Damien'),
+  ('form_2','Mike'),
+  ('form_3','Yan'),
+  ('form_4','Eric')
 on conflict (id) do nothing;
