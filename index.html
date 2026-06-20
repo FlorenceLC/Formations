@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formations FTSI</title>
+  <title>Formations FTSI — Planning</title>
   <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:52px;margin-bottom:10px;">🦅</div>
       <div style="font-size:20px;font-weight:800;margin-bottom:6px;">Formations FTSI</div>
-      <div style="font-size:13px;color:#64748B;line-height:1.5;">Première utilisation — connectez votre base de données Supabase pour partager les données entre tous les appareils de l'équipe.</div>
+      <div style="font-size:13px;color:#64748B;line-height:1.5;">Connectez la base de données partagée pour afficher le planning de l'équipe.</div>
     </div>
     <form id="no-config-form">
       <div class="form-group">
@@ -34,40 +34,9 @@
     <div style="margin-top:18px;padding:14px;background:#F1F5F9;border-radius:8px;font-size:12px;color:#64748B;line-height:1.6;">
       <strong>Pas encore de projet Supabase ?</strong><br>
       1. Créez un compte gratuit sur <strong>supabase.com</strong><br>
-      2. Créez un projet, allez dans <strong>SQL Editor</strong><br>
-      3. Copiez-collez le contenu du fichier <strong>sql/schema.sql</strong> et exécutez-le<br>
+      2. Créez un projet, ouvrez <strong>SQL Editor</strong><br>
+      3. Copiez-collez le contenu de <strong>sql/schema.sql</strong> et exécutez-le<br>
       4. Revenez ici avec l'URL et la clé
-    </div>
-  </div>
-</div>
-
-
-<!-- ===== LOGIN ===== -->
-<div id="login-screen">
-  <div class="login-left">
-    <div class="login-phoenix">🦅</div>
-    <div class="login-brand-title">Formations FTSI</div>
-    <div class="login-brand-sub">Gestion collaborative<br>des formations d'équipe</div>
-  </div>
-  <div class="login-right">
-    <div class="login-card">
-      <div class="login-title">Connexion</div>
-      <div class="login-sub">Entrez vos identifiants pour accéder à l'application</div>
-      <div id="login-error" class="login-error"></div>
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label">Identifiant</label>
-          <input id="login-username" class="form-control" type="text" placeholder="Votre identifiant" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Mot de passe</label>
-          <input id="login-password" class="form-control" type="password" placeholder="Votre mot de passe" autocomplete="current-password" required>
-        </div>
-        <button type="submit" id="login-submit-btn" class="btn btn-primary" style="width:100%;height:42px;font-size:14px;margin-top:4px;">
-          Se connecter
-        </button>
-      </form>
-      <div class="login-hint">Compte test : admin / admin123<br>Compte configurateur : configurateur / config123</div>
     </div>
   </div>
 </div>
@@ -75,420 +44,53 @@
 <!-- ===== APP ===== -->
 <div id="app" style="display:none;">
 
-  <!-- Sidebar overlay (mobile) -->
-  <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
-  <!-- SIDEBAR -->
-  <nav id="sidebar">
-    <div class="sidebar-logo">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="topbar-logo">
       <span class="logo-icon">🦅</span>
-      <div class="logo-text">Formations<br>FTSI</div>
+      <div class="logo-text">Formations FTSI</div>
     </div>
+    <div class="topbar-spacer"></div>
+    <button class="notif-bell" id="notif-bell-btn" title="Notifications">
+      🔔
+      <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+    </button>
+  </div>
 
-    <div class="sidebar-section">Navigation</div>
-
-    <button class="nav-item active" data-page="dashboard">
-      <span class="nav-icon">🏠</span> Tableau de bord
-    </button>
-    <button class="nav-item" data-page="planning">
-      <span class="nav-icon">📅</span> Planning
-    </button>
-    <button class="nav-item" data-page="formations">
-      <span class="nav-icon">📋</span> Formations
-    </button>
-    <button class="nav-item" data-page="catalogue">
-      <span class="nav-icon">📚</span> Catalogue
-    </button>
-
-    <div class="sidebar-section">Compte</div>
-    <button class="nav-item" id="nav-admin" data-page="admin" style="display:none;">
-      <span class="nav-icon">⚙️</span> Administration
-    </button>
-    <button class="nav-item" data-page="profil">
-      <span class="nav-icon">👤</span> Mon profil
-    </button>
-
-    <div class="sidebar-spacer"></div>
-
-    <div class="sidebar-bottom">
-      <div class="sidebar-user-info">
-        <div class="sidebar-avatar" id="sidebar-avatar"></div>
-        <div>
-          <div class="sidebar-user-name" id="sidebar-user-name"></div>
-          <div class="sidebar-user-role" id="sidebar-user-role"></div>
-        </div>
+  <!-- CONTENT : PLANNING -->
+  <div id="content">
+    <div class="planning-nav">
+      <div class="planning-period">
+        <button class="nav-btn" onclick="Pages.planning.prev()" title="Précédent">&#8249;</button>
+        <div class="planning-period-label" id="planning-label">—</div>
+        <button class="nav-btn" onclick="Pages.planning.next()" title="Suivant">&#8250;</button>
+        <button class="btn btn-sm btn-ghost" onclick="Pages.planning.today()" style="margin-left:4px;">Aujourd'hui</button>
+        <span class="week-number-badge" id="week-number-badge" style="display:none;"></span>
       </div>
-      <button class="btn-logout" id="btn-logout">
-        <span>⬅️</span> Déconnexion
-      </button>
-    </div>
-  </nav>
-
-  <!-- MAIN -->
-  <div id="main">
-
-    <!-- TOPBAR -->
-    <div id="topbar">
-      <button class="topbar-menu-btn" id="topbar-menu-btn">☰</button>
-      <div class="topbar-title" id="topbar-title">Tableau de bord</div>
-      <div class="topbar-user-badge">
-        <div class="badge-avatar" id="topbar-avatar"></div>
-        <span id="topbar-user-name"></span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="month" onclick="Pages.planning.switchView('month')">Mois</button>
+          <button class="view-tab" data-view="week" onclick="Pages.planning.switchView('week')">Semaine</button>
+        </div>
+        <button class="btn btn-primary" onclick="Pages.planning.openNew()">
+          ➕ Nouvelle formation
+        </button>
       </div>
     </div>
 
-    <!-- CONTENT -->
-    <div id="content">
+    <div class="planning-legend">
+      <span><span class="legend-swatch" style="background:var(--primary-light);border-left:3px solid var(--primary);"></span>Formation planifiée</span>
+      <span><span class="legend-swatch" style="background:var(--danger-light);border-left:3px solid var(--danger);"></span>Formation annulée</span>
+      <span>💡 Cliquez sur une formation pour voir le détail</span>
+    </div>
 
-      <!-- ===== PAGE : DASHBOARD ===== -->
-      <div id="page-dashboard" class="page active">
-        <div class="page-header">
-          <div>
-            <div class="page-h1" id="dashboard-greeting">Bonjour 👋</div>
-            <div class="page-sub">Voici un aperçu des formations en cours</div>
-          </div>
-        </div>
+    <div id="planning-view">
+      <div class="empty-state"><div class="empty-icon">📅</div><p>Chargement…</p></div>
+    </div>
+  </div>
+</div>
 
-        <div class="stat-grid">
-          <div class="stat-card">
-            <div class="stat-icon">📅</div>
-            <div class="stat-label">Formations à venir</div>
-            <div class="stat-value" id="stat-formations-avenir">—</div>
-            <div class="stat-sub">formations planifiées</div>
-          </div>
-          <div class="stat-card green">
-            <div class="stat-icon">✍️</div>
-            <div class="stat-label">Mes formations</div>
-            <div class="stat-value" id="stat-mes-formations">—</div>
-            <div class="stat-sub">inscriptions actives</div>
-          </div>
-          <div class="stat-card orange">
-            <div class="stat-icon">⏱</div>
-            <div class="stat-label">Heures réalisées</div>
-            <div class="stat-value" id="stat-heures">—</div>
-            <div class="stat-sub">heures de formation</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">📅 Prochaines formations</div>
-            <button class="btn btn-sm btn-secondary" onclick="App.navigate('formations')">Voir tout</button>
-          </div>
-          <div class="card-body" id="dashboard-prochaines">
-            <div class="empty-state"><div class="empty-icon">📭</div><p>Chargement…</p></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== PAGE : PLANNING ===== -->
-      <div id="page-planning" class="page">
-
-        <div class="planning-nav">
-          <div class="planning-period">
-            <button class="nav-btn" onclick="Pages.planning.prev()" title="Précédent">&#8249;</button>
-            <div class="planning-period-label" id="planning-label">—</div>
-            <button class="nav-btn" onclick="Pages.planning.next()" title="Suivant">&#8250;</button>
-            <button class="btn btn-sm btn-ghost" onclick="Pages.planning.today()" style="margin-left:4px;">Aujourd'hui</button>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <div class="view-tabs">
-              <button class="view-tab active" data-view="month" onclick="Pages.planning.switchView('month')">Mois</button>
-              <button class="view-tab" data-view="week" onclick="Pages.planning.switchView('week')">Semaine</button>
-            </div>
-            <button class="btn btn-primary" onclick="Pages.planning.openNew()">
-              ➕ Nouvelle formation
-            </button>
-          </div>
-        </div>
-
-        <!-- Légende -->
-        <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px;font-size:12px;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:5px;">
-            <span style="width:14px;height:14px;border-radius:3px;background:var(--primary-light);border-left:3px solid var(--primary);display:inline-block;"></span>
-            Mes formations
-          </span>
-          <span style="display:flex;align-items:center;gap:5px;">
-            <span style="width:14px;height:14px;border-radius:3px;background:#E2E8F0;border-left:3px solid #94A3B8;display:inline-block;"></span>
-            Autres formations
-          </span>
-          <span style="color:var(--text-muted);">💡 Cliquez sur une formation pour voir le détail</span>
-        </div>
-
-        <div id="planning-view">
-          <div class="empty-state"><div class="empty-icon">📅</div><p>Chargement…</p></div>
-        </div>
-      </div>
-
-      <!-- ===== PAGE : FORMATIONS ===== -->
-      <div id="page-formations" class="page">
-        <div class="page-header">
-          <div>
-            <div class="page-h1">Formations</div>
-            <div class="page-sub">Toutes les formations planifiées</div>
-          </div>
-          <button class="btn btn-primary" onclick="Pages.formations._openForm()">
-            ➕ Nouvelle formation
-          </button>
-        </div>
-
-        <div class="filter-bar">
-          <div class="search-wrap" style="flex:1;min-width:200px;">
-            <span>🔍</span>
-            <input type="text" placeholder="Rechercher une formation…" id="search-formations"
-              oninput="Pages.formations.filters.search=this.value;Pages.formations._renderTable()">
-          </div>
-          <select class="form-control" id="filter-categorie-formations" style="width:160px;"
-            onchange="Pages.formations.filters.categorieId=this.value;Pages.formations._renderTable()">
-            <option value="">Toutes catégories</option>
-          </select>
-          <select class="form-control" style="width:140px;"
-            onchange="Pages.formations.filters.statut=this.value;Pages.formations._renderTable()">
-            <option value="">Tous statuts</option>
-            <option value="validee">Validée</option>
-            <option value="annulee">Annulée</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" onclick="Pages.formations.exportExcel()" title="Export CSV/Excel">
-            📊 Excel
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="window.print()" title="Imprimer / PDF">
-            📄 PDF
-          </button>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Catégorie</th>
-                <th>Date</th>
-                <th>Horaires</th>
-                <th>Lieu</th>
-                <th>Formateurs</th>
-                <th>Participants (max)</th>
-                <th>Statut</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="formations-tbody">
-              <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);">Chargement…</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Légende des boutons d'action -->
-        <div style="margin-top:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Légende des actions</div>
-          <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;">
-            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--primary-light);color:var(--primary);width:30px;height:30px;font-size:14px;pointer-events:none;">👁</span> Voir le détail</span>
-            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--success-light);color:var(--success);width:30px;height:30px;font-size:14px;pointer-events:none;">✚</span> S'inscrire</span>
-            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);width:30px;height:30px;font-size:14px;pointer-events:none;">✖</span> Se désinscrire</span>
-            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--warning-light);color:var(--warning);width:30px;height:30px;font-size:14px;pointer-events:none;">✏️</span> Modifier</span>
-            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--primary-light);color:var(--primary);width:30px;height:30px;font-size:14px;pointer-events:none;">📋</span> Dupliquer</span>
-            <span style="display:flex;align-items:center;gap:8px;"><span class="btn btn-icon" style="background:var(--danger-light);color:var(--danger);width:30px;height:30px;font-size:14px;pointer-events:none;">🗑</span> Supprimer</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== PAGE : CATALOGUE ===== -->
-      <div id="page-catalogue" class="page">
-        <div class="page-header">
-          <div>
-            <div class="page-h1">Catalogue</div>
-            <div class="page-sub">Formations types réutilisables</div>
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Titre / Description</th>
-                <th>Catégorie</th>
-                <th>Durée</th>
-              </tr>
-            </thead>
-            <tbody id="catalogue-tbody">
-              <tr><td colspan="3" style="text-align:center;padding:32px;color:var(--text-muted);">Chargement…</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div style="margin-top:16px;padding:14px 16px;background:var(--primary-light);border-radius:8px;font-size:13px;color:var(--primary-dark);">
-          💡 Le catalogue liste les types de formations disponibles. Pour planifier une session, créez une formation depuis <strong>l'onglet Formations</strong> et importez-la depuis le catalogue.
-        </div>
-      </div>
-
-      <!-- ===== PAGE : ADMINISTRATION ===== -->
-      <div id="page-admin" class="page">
-        <div class="page-header">
-          <div class="page-h1">Administration</div>
-        </div>
-
-        <!-- Onglets admin -->
-        <div style="display:flex;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content;margin-bottom:18px;">
-          <button class="view-tab admin-tab-btn active" data-tab="users" onclick="Pages.admin.showTab('users')">👥 Utilisateurs</button>
-          <button class="view-tab admin-tab-btn" id="tab-btn-config" data-tab="config" onclick="Pages.admin.showTab('config')" style="display:none;">🔧 Configuration</button>
-        </div>
-
-        <!-- TAB : Utilisateurs -->
-        <div class="admin-tab-content" data-tab="users">
-          <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-            <button class="btn btn-primary" onclick="Pages.admin._openUserForm()">➕ Ajouter un utilisateur</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Utilisateur</th>
-                  <th>Email</th>
-                  <th>Rôle</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="users-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- TAB : Configuration Supabase (réservé au compte configurateur) -->
-        <div class="admin-tab-content" data-tab="config" style="display:none;">
-          <div style="max-width:600px;">
-            <div id="config-status" class="config-status disconnected">
-              ⚠️ Non configuré — données stockées localement dans le navigateur
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">URL du projet Supabase</label>
-              <input id="supabase-url" class="form-control" type="url" placeholder="https://xxxxxxxxxxxx.supabase.co">
-              <div class="form-hint">Trouvez cette URL dans votre projet Supabase → Settings → API</div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Clé publique (anon key)</label>
-              <input id="supabase-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs...">
-              <div class="form-hint">Clé anonyme publique — Settings → API → Project API keys</div>
-            </div>
-            <div style="display:flex;gap:10px;margin-top:6px;">
-              <button class="btn btn-primary" onclick="Pages.admin.saveConfig()">💾 Enregistrer</button>
-              <button class="btn btn-ghost" onclick="Pages.admin.testConnection()">🔌 Tester la connexion</button>
-            </div>
-
-            <div style="margin-top:24px;padding:16px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-              <div style="font-weight:700;margin-bottom:8px;">📋 Instructions Supabase (5 minutes)</div>
-              <ol style="font-size:13px;color:var(--text-muted);line-height:2;padding-left:18px;">
-                <li>Créer un compte gratuit sur <strong>supabase.com</strong></li>
-                <li>Créer un nouveau projet</li>
-                <li>Aller dans <strong>Settings → API</strong></li>
-                <li>Copier l'<strong>URL</strong> et la <strong>anon key</strong> ci-dessus</li>
-                <li>Cliquer sur <strong>Enregistrer</strong> puis <strong>Tester la connexion</strong></li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== PAGE : MON PROFIL ===== -->
-      <div id="page-profil" class="page">
-        <div class="page-header">
-          <div class="page-h1">Mon profil</div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:900px;">
-
-          <!-- Stats -->
-          <div class="card" style="grid-column:1/-1;">
-            <div class="card-header"><div class="card-title">📊 Mes statistiques</div></div>
-            <div class="card-body">
-              <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
-                <div id="profil-avatar" style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:white;flex-shrink:0;"></div>
-                <div>
-                  <div style="font-size:18px;font-weight:800;" id="profil-fullname"></div>
-                  <div style="font-size:13px;color:var(--text-muted);" id="profil-username-display"></div>
-                </div>
-              </div>
-              <div class="stat-grid" style="margin-bottom:0;">
-                <div class="stat-card">
-                  <div class="stat-icon">📅</div>
-                  <div class="stat-label">Formations à venir</div>
-                  <div class="stat-value" id="profil-stat-avenir">—</div>
-                </div>
-                <div class="stat-card green">
-                  <div class="stat-icon">✅</div>
-                  <div class="stat-label">Formations réalisées</div>
-                  <div class="stat-value" id="profil-stat-passees">—</div>
-                </div>
-                <div class="stat-card orange">
-                  <div class="stat-icon">⏱</div>
-                  <div class="stat-label">Heures de formation</div>
-                  <div class="stat-value" id="profil-stat-heures">—</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Infos personnelles -->
-          <div class="card">
-            <div class="card-header"><div class="card-title">👤 Informations</div></div>
-            <div class="card-body">
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Prénom</label>
-                  <input id="profil-prenom" class="form-control" type="text">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Nom</label>
-                  <input id="profil-nom" class="form-control" type="text">
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Email</label>
-                <input id="profil-email" class="form-control" type="email">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Couleur personnelle</label>
-                <div style="display:flex;gap:10px;align-items:center;">
-                  <input id="profil-couleur" class="form-control" type="color" style="width:60px;height:38px;padding:4px;cursor:pointer;">
-                  <span style="font-size:12px;color:var(--text-muted);">Utilisée pour vous identifier dans le planning</span>
-                </div>
-              </div>
-              <button class="btn btn-primary" onclick="Pages.profil.save()" style="width:100%;">
-                💾 Enregistrer
-              </button>
-            </div>
-          </div>
-
-          <!-- Changer mot de passe -->
-          <div class="card">
-            <div class="card-header"><div class="card-title">🔑 Changer le mot de passe</div></div>
-            <div class="card-body">
-              <div class="form-group">
-                <label class="form-label">Mot de passe actuel</label>
-                <input id="profil-pwd-current" class="form-control" type="password" placeholder="••••••••">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Nouveau mot de passe</label>
-                <input id="profil-pwd-new" class="form-control" type="password" placeholder="••••••••">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Confirmer</label>
-                <input id="profil-pwd-confirm" class="form-control" type="password" placeholder="••••••••">
-              </div>
-              <button class="btn btn-secondary" onclick="Pages.profil.changePwd()" style="width:100%;">
-                🔒 Modifier le mot de passe
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-    </div><!-- /content -->
-  </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- ===== MODALS ===== -->
-
-<!-- Modal : Détail formation -->
+<!-- ===== MODAL : Détail formation ===== -->
 <div class="modal-overlay" id="detail-modal">
   <div class="modal">
     <div class="modal-header">
@@ -496,27 +98,19 @@
       <button class="modal-close" onclick="Modal.close('detail-modal')">✕</button>
     </div>
     <div class="modal-body" id="detail-modal-body"></div>
-    <div class="modal-footer" id="detail-modal-footer"></div>
+    <div class="modal-footer" id="detail-modal-footer" style="flex-wrap:wrap;"></div>
   </div>
 </div>
 
-<!-- Modal : Créer/Modifier formation -->
+<!-- ===== MODAL : Créer/Modifier formation ===== -->
 <div class="modal-overlay" id="form-modal">
-  <div class="modal" style="max-width:640px;">
+  <div class="modal" style="max-width:600px;">
     <div class="modal-header">
       <span class="modal-title" id="form-modal-title">Nouvelle formation</span>
       <button class="modal-close" onclick="Modal.close('form-modal')">✕</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="form-id">
-
-      <!-- Import catalogue -->
-      <div class="form-group" id="form-catalogue-label">
-        <label class="form-label">Importer depuis le catalogue (optionnel)</label>
-        <select id="form-catalogue-import" class="form-control"
-          onchange="if(this.value){const c=DB.getCatalogue().find(x=>x.id===this.value);if(c){document.getElementById('form-description').value=c.description||'';document.getElementById('form-categorie').value=c.categorieId||'';}this.value='';}">
-        </select>
-      </div>
 
       <div class="form-group">
         <label class="form-label">Catégorie <span style="color:var(--danger)">*</span></label>
@@ -526,15 +120,9 @@
         <div class="form-hint">Choisissez une catégorie existante ou créez-en une nouvelle</div>
       </div>
 
-      <!-- Nouvelle catégorie -->
       <div class="form-group" id="form-new-categorie-row" style="display:none;">
         <label class="form-label">Nom de la nouvelle catégorie</label>
         <input id="form-new-categorie" class="form-control" type="text" placeholder="Ex : Technique, Langues…">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Description</label>
-        <textarea id="form-description" class="form-control" rows="2" placeholder="Description optionnelle…"></textarea>
       </div>
 
       <div class="form-row">
@@ -561,9 +149,12 @@
 
       <div class="form-group">
         <label class="form-label">Formateurs</label>
-        <select id="form-formateurs" class="form-control" multiple size="5" style="height:auto;padding:6px;">
-        </select>
-        <div class="form-hint">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs formateurs</div>
+        <input id="form-formateurs" class="form-control" type="text" placeholder="Noms des formateurs">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="form-description" class="form-control" rows="2" placeholder="Description optionnelle…"></textarea>
       </div>
 
       <div class="form-group">
@@ -576,61 +167,21 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="Modal.close('form-modal')">Annuler</button>
-      <button class="btn btn-primary" onclick="Pages.formations.save()">💾 Enregistrer</button>
+      <button class="btn btn-primary" onclick="Pages.planning.save()">💾 Enregistrer</button>
     </div>
   </div>
 </div>
 
-<!-- Modal : Créer/Modifier utilisateur -->
-<div class="modal-overlay" id="user-modal">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <span class="modal-title" id="user-form-title">Nouvel utilisateur</span>
-      <button class="modal-close" onclick="Modal.close('user-modal')">✕</button>
+<!-- ===== PANNEAU NOTIFICATIONS ===== -->
+<div class="notif-panel-overlay" id="notif-panel-overlay">
+  <div class="notif-panel">
+    <div class="notif-panel-header">
+      <span class="title">🔔 Notifications</span>
+      <button class="modal-close" id="notif-panel-close">✕</button>
     </div>
-    <div class="modal-body">
-      <input type="hidden" id="user-id">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Prénom <span style="color:var(--danger)">*</span></label>
-          <input id="user-prenom" class="form-control" type="text">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nom <span style="color:var(--danger)">*</span></label>
-          <input id="user-nom" class="form-control" type="text">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Identifiant <span style="color:var(--danger)">*</span></label>
-        <input id="user-username" class="form-control" type="text" placeholder="prénom.nom">
-      </div>
-      <div class="form-group" id="user-password-row">
-        <label class="form-label">Mot de passe <span style="color:var(--danger)">*</span></label>
-        <input id="user-password" class="form-control" type="password" placeholder="••••••••">
-      </div>
-      <div id="user-pwd-change-row" style="display:none;margin-bottom:14px;">
-        <button class="btn btn-ghost btn-sm" onclick="Pages.admin.changePwd()">🔑 Changer le mot de passe</button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input id="user-email" class="form-control" type="email">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Couleur</label>
-          <input id="user-couleur" class="form-control" type="color" style="height:38px;padding:4px;cursor:pointer;">
-        </div>
-        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:4px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--secondary);">
-            <input id="user-is-admin" type="checkbox" style="width:16px;height:16px;cursor:pointer;">
-            Administrateur
-          </label>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="Modal.close('user-modal')">Annuler</button>
-      <button class="btn btn-primary" onclick="Pages.admin.saveUser()">💾 Enregistrer</button>
+    <div class="notif-panel-body" id="notif-panel-body"></div>
+    <div class="notif-panel-footer">
+      <button class="btn btn-ghost" id="btn-change-config" style="width:100%;font-size:11px;">⚙️ Changer la connexion Supabase</button>
     </div>
   </div>
 </div>
@@ -648,30 +199,12 @@
   </div>
 </div>
 
-<!-- ===== TOAST CONTAINER ===== -->
+<!-- ===== TOAST ===== -->
 <div id="toast-container"></div>
-
-<!-- ===== PRINT STYLES ===== -->
-<style>
-@media print {
-  #login-screen, #sidebar, #topbar, .filter-bar, .btn, .modal-overlay, #toast-container { display: none !important; }
-  #app { display: block !important; }
-  #main { display: block !important; }
-  #content { overflow: visible !important; padding: 0 !important; }
-  .page { display: none !important; }
-  .page.active { display: block !important; }
-  body { overflow: visible !important; }
-  html, body { height: auto !important; overflow: auto !important; }
-  .table-wrap { overflow: visible !important; box-shadow: none !important; }
-  table { min-width: unset !important; }
-}
-</style>
 
 <script src="js/db.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pages.js"></script>
-
-
 
 </body>
 </html>
