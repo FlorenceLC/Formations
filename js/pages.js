@@ -20,10 +20,32 @@ const Pages = {
 
     async _render() {
       this._renderControls();
-      const [formations, cats] = await Promise.all([DB.getFormations(), DB.getCategories()]);
       const container = document.getElementById('planning-view');
+      let formations, cats;
+      try {
+        [formations, cats] = await Promise.all([DB.getFormations(), DB.getCategories()]);
+      } catch (e) {
+        this._renderError(container, e);
+        return;
+      }
       if (this.view === 'month') this._renderMonth(container, formations, cats);
       else                       this._renderWeek(container, formations, cats);
+    },
+
+    _renderError(container, e) {
+      const msg = e.message || '';
+      const is404 = msg.includes('404');
+      const is401 = msg.includes('401');
+      let hint = 'Vérifiez la configuration Supabase.';
+      if (is404) hint = 'La table "formations" n\'existe pas encore — le script sql/schema.sql n\'a probablement pas été exécuté dans Supabase.';
+      if (is401) hint = 'Clé d\'accès invalide — vérifiez la clé "anon public" dans les Paramètres.';
+      container.innerHTML = `
+        <div class="empty-state" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+          <div class="empty-icon">⚠️</div>
+          <p style="font-weight:700;margin-bottom:8px;">Impossible de charger le planning</p>
+          <p style="font-size:13px;max-width:420px;margin:0 auto 18px;line-height:1.5;">${hint}</p>
+          <button class="btn btn-primary" onclick="Pages.settings.open()">⚙️ Ouvrir les paramètres</button>
+        </div>`;
     },
 
     _renderControls() {
@@ -362,6 +384,81 @@ const Pages = {
       // Marquer tout comme lu à l'ouverture
       await DB.markAllNotificationsRead();
       App._refreshNotifBadge();
+    },
+  },
+
+  /* ========================================================
+     PARAMÈTRES — Configuration Supabase
+  ======================================================== */
+  settings: {
+    open() {
+      const cfg = DB.getSupabaseConfig();
+      document.getElementById('settings-url').value = cfg.url || '';
+      document.getElementById('settings-key').value = cfg.anonKey || '';
+      document.getElementById('settings-error').style.display = 'none';
+      this._updateStatus(DB.isConfigured());
+      Modal.open('settings-modal');
+    },
+
+    _updateStatus(connected) {
+      const el = document.getElementById('settings-status');
+      el.className = 'config-status ' + (connected ? 'connected' : 'disconnected');
+      el.innerHTML = connected ? '✅ Connecté' : '⚠️ Non connecté';
+    },
+
+    _showError(msg) {
+      const el = document.getElementById('settings-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    },
+
+    save() {
+      run(async () => {
+        const url = document.getElementById('settings-url').value.trim();
+        const key = document.getElementById('settings-key').value.trim();
+        if (!url || !key) { toast('URL et clé obligatoires', 'error'); return; }
+        DB.saveSupabaseConfig({ url, anonKey: key });
+        toast('Configuration enregistrée ✅', 'success');
+        document.getElementById('settings-error').style.display = 'none';
+        this._updateStatus(true);
+        hideNoConfigScreen();
+        Pages.planning.render();
+        App._refreshNotifBadge();
+      });
+    },
+
+    test() {
+      run(async () => {
+        const url = document.getElementById('settings-url').value.trim();
+        const key = document.getElementById('settings-key').value.trim();
+        if (!url || !key) { toast('Complétez l\'URL et la clé', 'error'); return; }
+
+        DB.saveSupabaseConfig({ url, anonKey: key });
+        document.getElementById('settings-error').style.display = 'none';
+
+        try {
+          const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/categories?limit=1`, {
+            headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
+          });
+          if (r.ok) {
+            toast('✅ Connexion réussie !', 'success');
+            this._updateStatus(true);
+          } else if (r.status === 404) {
+            this._updateStatus(false);
+            this._showError('❌ Erreur 404 : la table "categories" n\'existe pas encore. Exécutez le script sql/schema.sql dans Supabase → SQL Editor, puis réessayez.');
+          } else if (r.status === 401) {
+            this._updateStatus(false);
+            this._showError('❌ Erreur 401 : clé invalide ou incorrecte. Vérifiez que vous avez copié la clé "anon public" depuis Settings → API.');
+          } else {
+            this._updateStatus(false);
+            const body = await r.text();
+            this._showError(`❌ Erreur ${r.status} : ${body.slice(0, 200)}`);
+          }
+        } catch (e) {
+          this._updateStatus(false);
+          this._showError('❌ Connexion impossible. Vérifiez l\'URL (elle doit commencer par https://) et votre connexion internet.');
+        }
+      });
     },
   },
 };

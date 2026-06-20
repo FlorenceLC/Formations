@@ -107,6 +107,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === e.currentTarget) Pages.notifications.close();
   });
 
+  // Menu latéral (hamburger)
+  document.getElementById('menu-btn-open').addEventListener('click', () => {
+    document.getElementById('side-menu-overlay').classList.add('open');
+  });
+  document.getElementById('menu-btn-close').addEventListener('click', () => {
+    document.getElementById('side-menu-overlay').classList.remove('open');
+  });
+  document.getElementById('side-menu-overlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) document.getElementById('side-menu-overlay').classList.remove('open');
+  });
+  document.getElementById('menu-btn-settings').addEventListener('click', () => {
+    document.getElementById('side-menu-overlay').classList.remove('open');
+    Pages.settings.open();
+  });
+
   // Close modals on backdrop click
   document.querySelectorAll('.modal-overlay').forEach(overlay =>
     overlay.addEventListener('click', e => { if (e.target === overlay) Modal.close(overlay.id); }));
@@ -135,17 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('❌ Connexion impossible. Vérifiez l\'URL, la clé anon, et que le schéma SQL a bien été exécuté.');
         DB.saveSupabaseConfig({});
       }
-    });
-  }
-
-  // Lien "changer la configuration" (optionnel, accessible discrètement)
-  const changeCfgBtn = document.getElementById('btn-change-config');
-  if (changeCfgBtn) {
-    changeCfgBtn.addEventListener('click', () => {
-      confirmDialog('Changer de base', 'Voulez-vous reconfigurer la connexion à Supabase ?', () => {
-        DB.saveSupabaseConfig({});
-        showNoConfigScreen();
-      });
     });
   }
 
