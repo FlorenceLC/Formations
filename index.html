@@ -72,6 +72,9 @@
         <span class="week-number-badge" id="week-number-badge" style="display:none;"></span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="filter-formateur" class="form-control" style="width:170px;" onchange="Pages.planning.setFilterFormateur(this.value)">
+          <option value="">👨‍🏫 Tous les formateurs</option>
+        </select>
         <div class="view-tabs">
           <button class="view-tab active" data-view="month" onclick="Pages.planning.switchView('month')">Mois</button>
           <button class="view-tab" data-view="week" onclick="Pages.planning.switchView('week')">Semaine</button>
@@ -82,7 +85,7 @@
       </div>
     </div>
 
-    <div class="planning-legend">
+    <div class="planning-legend" id="planning-legend">
       <span><span class="legend-swatch" style="background:var(--primary-light);border-left:3px solid var(--primary);"></span>Formation planifiée</span>
       <span><span class="legend-swatch" style="background:var(--danger-light);border-left:3px solid var(--danger);"></span>Formation annulée</span>
       <span>💡 Cliquez sur une formation pour voir le détail</span>
