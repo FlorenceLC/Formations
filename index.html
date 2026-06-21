@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formations FTSI — Planning</title>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+
+<!-- ===== ÉCRAN CONFIGURATION SUPABASE (1ère utilisation) ===== -->
+<div id="no-config-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1E293B,#0F172A);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;padding:36px;width:100%;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:52px;margin-bottom:10px;">🦅</div>
+      <div style="font-size:20px;font-weight:800;margin-bottom:6px;">Formations FTSI</div>
+      <div style="font-size:13px;color:#64748B;line-height:1.5;">Connectez la base de données partagée pour afficher le planning de l'équipe.</div>
+    </div>
+    <form id="no-config-form">
+      <div class="form-group">
+        <label class="form-label">URL du projet Supabase</label>
+        <input id="nc-url" class="form-control" type="url" placeholder="https://xxxx.supabase.co" required autocapitalize="off" autocorrect="off">
+        <div class="form-hint">Supabase → Settings → API → Project URL</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Clé anon (publique)</label>
+        <input id="nc-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" required autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Supabase → Settings → API → anon public</div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;height:44px;font-size:14px;margin-top:4px;">
+        🔌 Se connecter à Supabase
+      </button>
+    </form>
+    <div style="margin-top:18px;padding:14px;background:#F1F5F9;border-radius:8px;font-size:12px;color:#64748B;line-height:1.6;">
+      <strong>Pas encore de projet Supabase ?</strong><br>
+      1. Créez un compte gratuit sur <strong>supabase.com</strong><br>
+      2. Créez un projet, ouvrez <strong>SQL Editor</strong><br>
+      3. Copiez-collez le contenu de <strong>sql/schema.sql</strong> et exécutez-le<br>
+      4. Revenez ici avec l'URL et la clé
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" style="display:none;">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <button class="menu-btn" id="menu-btn-open" title="Menu">☰</button>
+    <div class="topbar-logo">
+      <span class="logo-icon">🦅</span>
+      <div class="logo-text">Formations FTSI</div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <button class="notif-bell" id="refresh-btn" title="Rafraîchir">
+      🔄
+    </button>
+    <button class="notif-bell" id="notif-bell-btn" title="Notifications">
+      🔔
+      <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+    </button>
+  </div>
+
+  <!-- CONTENT : PLANNING -->
+  <div id="content">
+    <div class="planning-nav">
+      <div class="planning-period">
+        <button class="nav-btn" onclick="Pages.planning.prev()" title="Précédent">&#8249;</button>
+        <div class="planning-period-label" id="planning-label">—</div>
+        <button class="nav-btn" onclick="Pages.planning.next()" title="Suivant">&#8250;</button>
+        <button class="btn btn-sm btn-ghost" onclick="Pages.planning.today()" style="margin-left:4px;">Aujourd'hui</button>
+        <span class="week-number-badge" id="week-number-badge" style="display:none;"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="view-tabs">
+          <button class="view-tab active" data-view="month" onclick="Pages.planning.switchView('month')">Mois</button>
+          <button class="view-tab" data-view="week" onclick="Pages.planning.switchView('week')">Semaine</button>
+        </div>
+        <button class="btn btn-primary" onclick="Pages.planning.openNew()">
+          ➕ Nouvelle formation
+        </button>
+      </div>
+    </div>
+
+    <div class="planning-legend">
+      <span><span class="legend-swatch" style="background:var(--primary-light);border-left:3px solid var(--primary);"></span>Formation planifiée</span>
+      <span><span class="legend-swatch" style="background:var(--danger-light);border-left:3px solid var(--danger);"></span>Formation annulée</span>
+      <span>💡 Cliquez sur une formation pour voir le détail</span>
+    </div>
+
+    <div id="planning-view">
+      <div class="empty-state"><div class="empty-icon">📅</div><p>Chargement…</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : Détail formation ===== -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="detail-modal-title">Détail formation</span>
+      <button class="modal-close" onclick="Modal.close('detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="detail-modal-body"></div>
+    <div class="modal-footer" id="detail-modal-footer" style="flex-wrap:wrap;"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL : Créer/Modifier formation ===== -->
+<div class="modal-overlay" id="form-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <span class="modal-title" id="form-modal-title">Nouvelle formation</span>
+      <button class="modal-close" onclick="Modal.close('form-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="form-id">
+
+      <div class="form-group">
+        <label class="form-label">Catégorie <span style="color:var(--danger)">*</span></label>
+        <select id="form-categorie" class="form-control"
+          onchange="if(this.value==='__new__'){document.getElementById('form-new-categorie-row').style.display='block';}else{document.getElementById('form-new-categorie-row').style.display='none';}">
+        </select>
+        <div class="form-hint">Choisissez une catégorie existante ou créez-en une nouvelle</div>
+      </div>
+
+      <div class="form-group" id="form-new-categorie-row" style="display:none;">
+        <label class="form-label">Nom de la nouvelle catégorie</label>
+        <input id="form-new-categorie" class="form-control" type="text" placeholder="Ex : Technique, Langues…">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date <span style="color:var(--danger)">*</span></label>
+          <input id="form-date" class="form-control" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Créneau <span style="color:var(--danger)">*</span></label>
+          <select id="form-creneau" class="form-control">
+            <option value="matin">🌅 Matin (8h–12h)</option>
+            <option value="aprem">☀️ Après-midi (13h–17h)</option>
+            <option value="nuit">🌙 Nuit (19h–1h)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Lieu</span>
+            <button type="button" class="manage-link" onclick="Pages.lists.openManager('lieux')">✏️ Gérer</button>
+          </label>
+          <select id="form-lieu" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Places maximum</label>
+          <input id="form-places" class="form-control" type="number" min="1" max="500" value="10">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Formateurs</span>
+          <button type="button" class="manage-link" onclick="Pages.lists.openManager('formateurs')">✏️ Gérer</button>
+        </label>
+        <select id="form-formateurs" class="form-control" multiple size="4"></select>
+        <div class="form-hint">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs formateurs</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="form-description" class="form-control" rows="2" placeholder="Description optionnelle…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Statut</label>
+        <select id="form-statut" class="form-control">
+          <option value="validee">Validée</option>
+          <option value="annulee">Annulée</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('form-modal')">Annuler</button>
+      <button class="btn btn-primary" onclick="Pages.planning.save()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PANNEAU NOTIFICATIONS ===== -->
+<div class="notif-panel-overlay" id="notif-panel-overlay">
+  <div class="notif-panel">
+    <div class="notif-panel-header">
+      <span class="title">🔔 Notifications</span>
+      <button class="modal-close" id="notif-panel-close">✕</button>
+    </div>
+    <div class="notif-panel-body" id="notif-panel-body"></div>
+  </div>
+</div>
+
+<!-- ===== MENU LATÉRAL (gauche) ===== -->
+<div class="side-menu-overlay" id="side-menu-overlay">
+  <div class="side-menu">
+    <div class="side-menu-header">
+      <span class="title">🦅 Formations FTSI</span>
+      <button class="modal-close" id="menu-btn-close">✕</button>
+    </div>
+    <div class="side-menu-body">
+      <button class="side-menu-item active" data-page="planning">
+        <span class="nav-icon">📅</span> Planning
+      </button>
+    </div>
+    <div class="side-menu-bottom">
+      <button class="side-menu-item" id="menu-btn-settings">
+        <span class="nav-icon">⚙️</span> Paramètres
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : PARAMÈTRES / CONFIGURATION SUPABASE ===== -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ Paramètres — Connexion Supabase</span>
+      <button class="modal-close" onclick="Modal.close('settings-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="settings-status" class="config-status disconnected" style="margin-bottom:18px;">
+        ⚠️ Non connecté
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">URL du projet Supabase</label>
+        <input id="settings-url" class="form-control" type="url" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off">
+        <div class="form-hint">Supabase → Settings → API → Project URL</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Clé anon (publique)</label>
+        <input id="settings-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Supabase → Settings → API → anon public</div>
+      </div>
+
+      <div id="settings-error" style="display:none;background:var(--danger-light);color:var(--danger);border-radius:8px;padding:12px 14px;font-size:12px;margin-top:10px;line-height:1.5;"></div>
+
+      <div style="margin-top:20px;padding:14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
+        <strong style="color:var(--text);">Si la connexion échoue (erreur 404 ou 401) :</strong><br>
+        1. Vérifiez que le script <strong>sql/schema.sql</strong> a bien été exécuté dans Supabase → SQL Editor<br>
+        2. Vérifiez l'URL (pas de slash final) et que la clé est bien la clé <strong>anon public</strong><br>
+        3. Cliquez sur <strong>Tester la connexion</strong> ci-dessous
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Pages.settings.test()">🔌 Tester la connexion</button>
+      <button class="btn btn-primary" onclick="Pages.settings.save()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : Gérer formateurs / lieux ===== -->
+<div class="modal-overlay" id="list-manager-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title" id="list-manager-title">Gérer la liste</span>
+      <button class="modal-close" onclick="Modal.close('list-manager-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input id="list-manager-input" class="form-control" type="text" placeholder="Nom…" style="flex:1;">
+        <button class="btn btn-primary btn-sm" onclick="Pages.lists.add()" style="flex-shrink:0;">➕ Ajouter</button>
+      </div>
+      <div id="list-manager-items"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('list-manager-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONFIRM DIALOG ===== -->
+<div id="confirm-overlay" style="display:none;" class="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title" id="confirm-title">Confirmer</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" id="confirm-no">Annuler</button>
+      <button class="btn btn-danger" id="confirm-yes">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div id="toast-container"></div>
+
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pages.js"></script>
+
+</body>
+</html>
