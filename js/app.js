@@ -114,7 +114,7 @@ const Fmt = {
   time(iso)      { if (!iso) return ''; return new Date(iso).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }); },
   monthYear(d)   { return d.toLocaleDateString('fr-FR', { month:'long', year:'numeric' }); },
   dureeH(i1, i2) { if (!i1||!i2) return '—'; const h=(new Date(i2)-new Date(i1))/3600000; return h%1===0?`${h}h`:`${h.toFixed(1)}h`; },
-  isoDate(d)     { return d.toISOString().slice(0,10); },
+  isoDate(d)     { const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; },
   relativeTime(iso) {
     const diff = (Date.now() - new Date(iso).getTime()) / 1000;
     if (diff < 60) return 'à l\'instant';

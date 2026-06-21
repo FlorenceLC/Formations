@@ -75,13 +75,23 @@ const Pages = {
       s.setDate(s.getDate() - day); s.setHours(0,0,0,0); return s;
     },
 
+    /* Le calendrier n'affiche pas le week-end : si on est samedi ou dimanche,
+       on met en avant le lundi suivant comme repère "aujourd'hui". */
+    _highlightDate() {
+      const d = new Date(); d.setHours(0,0,0,0);
+      const day = d.getDay(); // 0 = dimanche, 6 = samedi
+      if (day === 6) d.setDate(d.getDate() + 2); // samedi -> lundi
+      if (day === 0) d.setDate(d.getDate() + 1); // dimanche -> lundi
+      return d;
+    },
+
     /* ---- VUE MOIS (lundi → vendredi uniquement) ---- */
     _renderMonth(container, formations, cats) {
       const year  = this.currentDate.getFullYear();
       const month = this.currentDate.getMonth();
       const first = new Date(year, month, 1);
       const last  = new Date(year, month + 1, 0);
-      const today = new Date(); today.setHours(0,0,0,0);
+      const today = this._highlightDate();
 
       const byDate = {};
       formations.forEach(f => {
@@ -148,7 +158,7 @@ const Pages = {
     /* ---- VUE SEMAINE (lundi → vendredi) ---- */
     _renderWeek(container, formations, cats) {
       const ws = this._weekStart(this.currentDate);
-      const today = new Date(); today.setHours(0,0,0,0);
+      const today = this._highlightDate();
       const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
 
       let html = '<div class="week-grid">';
@@ -311,7 +321,7 @@ const Pages = {
 
       document.getElementById('form-id').value          = id || '';
       document.getElementById('form-categorie').value   = f?.categorieId || '';
-      document.getElementById('form-date').value        = f?.dateDebut ? f.dateDebut.slice(0,10) : Fmt.isoDate(new Date());
+      document.getElementById('form-date').value        = f?.dateDebut ? Fmt.isoDate(new Date(f.dateDebut)) : Fmt.isoDate(new Date());
       document.getElementById('form-creneau').value     = f ? guessCreneau(f.dateDebut) : 'matin';
       document.getElementById('form-lieu').value         = f?.lieu || '';
       document.getElementById('form-places').value      = f?.placesMax || 10;
