@@ -15,11 +15,15 @@ const Pages = {
   planning: {
     view: 'month',          // 'month' | 'week'
     currentDate: new Date(),
+    filterFormateur: localStorage.getItem('ftsi_filter_formateur') || '',
+    _formateursLoaded: false,
 
     render() { run(() => this._render()); },
 
     async _render() {
       this._renderControls();
+      this._updateLegend();
+      await this._loadFormateurFilter();
       const container = document.getElementById('planning-view');
       let formations, cats;
       try {
@@ -73,6 +77,60 @@ const Pages = {
       const s = new Date(d);
       const day = s.getDay() === 0 ? 6 : s.getDay() - 1; // lundi = 0
       s.setDate(s.getDate() - day); s.setHours(0,0,0,0); return s;
+    },
+
+    async _loadFormateurFilter() {
+      if (this._formateursLoaded) return;
+      try {
+        const formateurs = await DB.getFormateurs();
+        const sel = document.getElementById('filter-formateur');
+        sel.innerHTML = '<option value="">👨‍🏫 Tous les formateurs</option>';
+        formateurs.forEach(f => {
+          const o = document.createElement('option');
+          o.value = f.nom; o.textContent = f.nom;
+          sel.appendChild(o);
+        });
+        // Si le formateur précédemment filtré n'existe plus, revenir à "Tous"
+        const stillExists = !this.filterFormateur || formateurs.some(f => f.nom === this.filterFormateur);
+        if (!stillExists) {
+          this.filterFormateur = '';
+          localStorage.removeItem('ftsi_filter_formateur');
+        }
+        sel.value = this.filterFormateur;
+        this._formateursLoaded = true;
+      } catch (e) { /* silencieux, sera retenté au prochain render */ }
+    },
+
+    setFilterFormateur(nom) {
+      this.filterFormateur = nom;
+      // Préférence personnelle de l'appareil uniquement — jamais envoyée à Supabase
+      if (nom) localStorage.setItem('ftsi_filter_formateur', nom);
+      else localStorage.removeItem('ftsi_filter_formateur');
+      this._updateLegend();
+      this.render();
+    },
+
+    _updateLegend() {
+      const legend = document.getElementById('planning-legend');
+      if (this.filterFormateur) {
+        legend.innerHTML = `
+          <span><span class="legend-swatch" style="background:var(--primary-light);border-left:3px solid var(--primary);"></span>Formations de <strong>${this.filterFormateur}</strong></span>
+          <span><span class="legend-swatch" style="background:#F1F5F9;border-left:3px solid var(--text-light);"></span>Autres formateurs</span>
+          <span><span class="legend-swatch" style="background:var(--danger-light);border-left:3px solid var(--danger);"></span>Formation annulée</span>
+        `;
+      } else {
+        legend.innerHTML = `
+          <span><span class="legend-swatch" style="background:var(--primary-light);border-left:3px solid var(--primary);"></span>Formation planifiée</span>
+          <span><span class="legend-swatch" style="background:var(--danger-light);border-left:3px solid var(--danger);"></span>Formation annulée</span>
+          <span>💡 Cliquez sur une formation pour voir le détail</span>
+        `;
+      }
+    },
+
+    _matchesFilter(f) {
+      if (!this.filterFormateur) return true;
+      const noms = (f.formateurs || '').split(',').map(s => s.trim());
+      return noms.includes(this.filterFormateur);
     },
 
     /* Le calendrier n'affiche pas le week-end : si on est samedi ou dimanche,
@@ -137,7 +195,9 @@ const Pages = {
           dayForms.slice(0, 4).forEach(f => {
             const cat = cats.find(c => c.id === f.categorieId);
             const isAnnulee = f.statut === 'annulee';
-            html += `<div class="cal-event${isAnnulee ? ' annulee' : ''}"
+            const isFilteredOut = !isAnnulee && !this._matchesFilter(f);
+            const cls = isAnnulee ? ' annulee' : (isFilteredOut ? ' filtered-out' : '');
+            html += `<div class="cal-event${cls}"
               title="${cat?.nom||'—'}\n⏰ ${Fmt.time(f.dateDebut)}\n👨‍🏫 ${f.formateurs||'—'}\n📍 ${f.lieu||'—'}"
               onclick="Pages.planning._openDetail('${f.id}')">
               <div class="cal-event-cat">${cat?.nom || '—'}</div>
@@ -178,7 +238,9 @@ const Pages = {
           dayForms.forEach(f => {
             const cat = cats.find(c => c.id === f.categorieId);
             const isAnnulee = f.statut === 'annulee';
-            html += `<div class="week-event${isAnnulee ? ' annulee' : ''}" onclick="Pages.planning._openDetail('${f.id}')">
+            const isFilteredOut = !isAnnulee && !this._matchesFilter(f);
+            const cls = isAnnulee ? ' annulee' : (isFilteredOut ? ' filtered-out' : '');
+            html += `<div class="week-event${cls}" onclick="Pages.planning._openDetail('${f.id}')">
               <div class="week-event-cat">${cat?.nom || '—'}</div>
               <div class="week-event-meta">⏰ ${Fmt.time(f.dateDebut)} – ${Fmt.time(f.dateFin)}</div>
               <div class="week-event-meta">👨‍🏫 ${f.formateurs||'—'}</div>
@@ -511,6 +573,11 @@ const Pages = {
         formSel.innerHTML = '';
         formateurs.forEach(fo => { const o=document.createElement('option'); o.value=fo.nom; o.textContent=fo.nom; formSel.appendChild(o); });
         Array.from(formSel.options).forEach(o => { o.selected = selected.includes(o.value); });
+      }
+      // Rafraîchir aussi le filtre formateur du planning
+      if (this._current === 'formateurs') {
+        Pages.planning._formateursLoaded = false;
+        await Pages.planning._loadFormateurFilter();
       }
     },
   },
