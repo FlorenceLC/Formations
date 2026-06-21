@@ -288,6 +288,8 @@ textarea.form-control { resize: vertical; min-height: 70px; }
 .cal-event { border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; font-size: 12px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; line-height: 1.4; background: var(--primary-light); color: var(--primary-dark); border-left: 3px solid var(--primary); }
 .cal-event:hover { opacity: 0.78; }
 .cal-event.annulee { background: var(--danger-light); color: var(--danger); border-left-color: var(--danger); text-decoration: line-through; opacity: 0.7; }
+.cal-event.filtered-out { background: #F1F5F9; color: var(--text-light); border-left-color: var(--text-light); }
+.cal-event.filtered-out:hover { opacity: 0.6; }
 .cal-event-cat { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-event-meta { font-size: 11px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .cal-more { font-size: 11px; color: var(--primary); margin-top: 2px; cursor: pointer; font-weight: 600; }
@@ -304,6 +306,8 @@ textarea.form-control { resize: vertical; min-height: 70px; }
 .week-event { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; cursor: pointer; transition: opacity 0.15s; background: var(--primary-light); border-left: 3px solid var(--primary); color: var(--primary-dark); }
 .week-event:hover { opacity: 0.78; }
 .week-event.annulee { background: var(--danger-light); border-left-color: var(--danger); color: var(--danger); }
+.week-event.filtered-out { background: #F1F5F9; color: var(--text-light); border-left-color: var(--text-light); }
+.week-event.filtered-out:hover { opacity: 0.6; }
 .week-event-cat { font-weight: 700; margin-bottom: 4px; font-size: 13px; }
 .week-event-meta { font-size: 11px; opacity: 0.9; margin-top: 2px; }
 .week-empty { font-size: 12px; color: var(--text-light); text-align: center; padding: 24px 0; }
