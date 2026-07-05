@@ -9,35 +9,40 @@
 </head>
 <body>
 
-<!-- ===== ÉCRAN CONFIGURATION SUPABASE (1ère utilisation) ===== -->
+<!-- ===== ÉCRAN CONFIGURATION FIREBASE (1ère utilisation) ===== -->
 <div id="no-config-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1E293B,#0F172A);z-index:9999;align-items:center;justify-content:center;padding:20px;">
-  <div style="background:#fff;border-radius:16px;padding:36px;width:100%;max-width:460px;box-shadow:0 8px 40px rgba(0,0,0,.3);">
+  <div style="background:#fff;border-radius:16px;padding:36px;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.3);">
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:52px;margin-bottom:10px;">🦅</div>
       <div style="font-size:20px;font-weight:800;margin-bottom:6px;">Formations FTSI</div>
-      <div style="font-size:13px;color:#64748B;line-height:1.5;">Connectez la base de données partagée pour afficher le planning de l'équipe.</div>
+      <div style="font-size:13px;color:#64748B;line-height:1.5;">Connectez la base de données Firebase pour partager le planning avec toute l'équipe.</div>
     </div>
     <form id="no-config-form">
       <div class="form-group">
-        <label class="form-label">URL du projet Supabase</label>
-        <input id="nc-url" class="form-control" type="url" placeholder="https://xxxx.supabase.co" required autocapitalize="off" autocorrect="off">
-        <div class="form-hint">Supabase → Settings → API → Project URL</div>
+        <label class="form-label">API Key</label>
+        <input id="nc-apikey" class="form-control" type="text" placeholder="AIzaSy…" required autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Firebase → Paramètres du projet → Général → apiKey</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Clé anon (publique)</label>
-        <input id="nc-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" required autocapitalize="off" autocorrect="off" spellcheck="false">
-        <div class="form-hint">Supabase → Settings → API → anon public</div>
+        <label class="form-label">Project ID</label>
+        <input id="nc-projectid" class="form-control" type="text" placeholder="formations-ftsi" required autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Firebase → Paramètres du projet → Général → projectId</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">App ID</label>
+        <input id="nc-appid" class="form-control" type="text" placeholder="1:123456789:web:abc123…" required autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Firebase → Paramètres du projet → Général → appId</div>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;height:44px;font-size:14px;margin-top:4px;">
-        🔌 Se connecter à Supabase
+        🔌 Se connecter à Firebase
       </button>
     </form>
-    <div style="margin-top:18px;padding:14px;background:#F1F5F9;border-radius:8px;font-size:12px;color:#64748B;line-height:1.6;">
-      <strong>Pas encore de projet Supabase ?</strong><br>
-      1. Créez un compte gratuit sur <strong>supabase.com</strong><br>
-      2. Créez un projet, ouvrez <strong>SQL Editor</strong><br>
-      3. Copiez-collez le contenu de <strong>sql/schema.sql</strong> et exécutez-le<br>
-      4. Revenez ici avec l'URL et la clé
+    <div style="margin-top:18px;padding:14px;background:#F1F5F9;border-radius:8px;font-size:12px;color:#64748B;line-height:1.7;">
+      <strong>Pas encore de projet Firebase ?</strong><br>
+      1. <strong>firebase.google.com</strong> → Se connecter avec Google → Créer un projet<br>
+      2. Menu gauche → <strong>Firestore Database</strong> → Créer une base → Mode test → Région <strong>eur3</strong><br>
+      3. Roue dentée ⚙️ → <strong>Paramètres du projet</strong> → Ajouter une app Web <strong>&lt;/&gt;</strong><br>
+      4. Copiez <strong>apiKey</strong>, <strong>projectId</strong> et <strong>appId</strong> dans les champs ci-dessus
     </div>
   </div>
 </div>
@@ -222,11 +227,11 @@
   </div>
 </div>
 
-<!-- ===== MODAL : PARAMÈTRES / CONFIGURATION SUPABASE ===== -->
+<!-- ===== MODAL : PARAMÈTRES / CONFIGURATION FIREBASE ===== -->
 <div class="modal-overlay" id="settings-modal">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header">
-      <span class="modal-title">⚙️ Paramètres — Connexion Supabase</span>
+      <span class="modal-title">⚙️ Paramètres — Connexion Firebase</span>
       <button class="modal-close" onclick="Modal.close('settings-modal')">✕</button>
     </div>
     <div class="modal-body">
@@ -235,23 +240,26 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">URL du projet Supabase</label>
-        <input id="settings-url" class="form-control" type="url" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off">
-        <div class="form-hint">Supabase → Settings → API → Project URL</div>
+        <label class="form-label">API Key</label>
+        <input id="settings-apikey" class="form-control" type="text" placeholder="AIzaSy…" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Firebase → Paramètres du projet → Général → apiKey</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Clé anon (publique)</label>
-        <input id="settings-key" class="form-control" type="text" placeholder="eyJhbGciOiJIUzI1NiIs…" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <div class="form-hint">Supabase → Settings → API → anon public</div>
+        <label class="form-label">Project ID</label>
+        <input id="settings-projectid" class="form-control" type="text" placeholder="formations-ftsi" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Firebase → Paramètres du projet → Général → projectId</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">App ID</label>
+        <input id="settings-appid" class="form-control" type="text" placeholder="1:123456789:web:abc123…" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <div class="form-hint">Firebase → Paramètres du projet → Général → appId</div>
       </div>
 
       <div id="settings-error" style="display:none;background:var(--danger-light);color:var(--danger);border-radius:8px;padding:12px 14px;font-size:12px;margin-top:10px;line-height:1.5;"></div>
 
       <div style="margin-top:20px;padding:14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
-        <strong style="color:var(--text);">Si la connexion échoue (erreur 404 ou 401) :</strong><br>
-        1. Vérifiez que le script <strong>sql/schema.sql</strong> a bien été exécuté dans Supabase → SQL Editor<br>
-        2. Vérifiez l'URL (pas de slash final) et que la clé est bien la clé <strong>anon public</strong><br>
-        3. Cliquez sur <strong>Tester la connexion</strong> ci-dessous
+        <strong style="color:var(--text);">Où trouver ces valeurs ?</strong><br>
+        Firebase → ⚙️ Paramètres du projet → Général → faites défiler jusqu'à <strong>"Vos applications"</strong> et copiez les valeurs du bloc <code>firebaseConfig</code>.
       </div>
     </div>
     <div class="modal-footer">
