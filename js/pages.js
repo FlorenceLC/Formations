@@ -40,9 +40,9 @@ const Pages = {
       const msg = e.message || '';
       const is404 = msg.includes('404');
       const is401 = msg.includes('401');
-      let hint = 'Vérifiez la configuration Supabase.';
-      if (is404) hint = 'La table "formations" n\'existe pas encore — le script sql/schema.sql n\'a probablement pas été exécuté dans Supabase.';
-      if (is401) hint = 'Clé d\'accès invalide — vérifiez la clé "anon public" dans les Paramètres.';
+      let hint = 'Vérifiez la configuration Firebase.';
+      if (is404) hint = 'Impossible de lire Firestore — vérifiez que Firestore est activé (mode test) dans Firebase Console → Firestore → Règles.';
+      if (is401) hint = 'Accès refusé — vérifiez les règles Firestore (mode test) et les valeurs dans Paramètres.';
       container.innerHTML = `
         <div class="empty-state" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
           <div class="empty-icon">⚠️</div>
@@ -103,7 +103,7 @@ const Pages = {
 
     setFilterFormateur(nom) {
       this.filterFormateur = nom;
-      // Préférence personnelle de l'appareil uniquement — jamais envoyée à Supabase
+      // Préférence personnelle de l'appareil uniquement — jamais envoyée à Firebase
       if (nom) localStorage.setItem('ftsi_filter_formateur', nom);
       else localStorage.removeItem('ftsi_filter_formateur');
       this._updateLegend();
@@ -583,13 +583,14 @@ const Pages = {
   },
 
   /* ========================================================
-     PARAMÈTRES — Configuration Supabase
+     PARAMÈTRES — Configuration Firebase
   ======================================================== */
   settings: {
     open() {
-      const cfg = DB.getSupabaseConfig();
-      document.getElementById('settings-url').value = cfg.url || '';
-      document.getElementById('settings-key').value = cfg.anonKey || '';
+      const cfg = DB.getFirebaseConfig();
+      document.getElementById('settings-apikey').value   = cfg.apiKey    || '';
+      document.getElementById('settings-projectid').value = cfg.projectId || '';
+      document.getElementById('settings-appid').value    = cfg.appId     || '';
       document.getElementById('settings-error').style.display = 'none';
       this._updateStatus(DB.isConfigured());
       Modal.open('settings-modal');
@@ -598,7 +599,7 @@ const Pages = {
     _updateStatus(connected) {
       const el = document.getElementById('settings-status');
       el.className = 'config-status ' + (connected ? 'connected' : 'disconnected');
-      el.innerHTML = connected ? '✅ Connecté' : '⚠️ Non connecté';
+      el.innerHTML = connected ? '✅ Connecté à Firebase' : '⚠️ Non connecté';
     },
 
     _showError(msg) {
@@ -609,49 +610,53 @@ const Pages = {
 
     save() {
       run(async () => {
-        const url = document.getElementById('settings-url').value.trim();
-        const key = document.getElementById('settings-key').value.trim();
-        if (!url || !key) { toast('URL et clé obligatoires', 'error'); return; }
-        DB.saveSupabaseConfig({ url, anonKey: key });
-        toast('Configuration enregistrée ✅', 'success');
+        const apiKey    = document.getElementById('settings-apikey').value.trim();
+        const projectId = document.getElementById('settings-projectid').value.trim();
+        const appId     = document.getElementById('settings-appid').value.trim();
+        if (!apiKey || !projectId || !appId) { toast('Les 3 champs sont obligatoires', 'error'); return; }
+        DB.saveFirebaseConfig({ apiKey, projectId, appId });
         document.getElementById('settings-error').style.display = 'none';
-        this._updateStatus(true);
-        hideNoConfigScreen();
-        Pages.planning.render();
-        App._refreshNotifBadge();
+        try {
+          await DB.init();
+          await DB.ping();
+          toast('Configuration enregistrée ✅', 'success');
+          this._updateStatus(true);
+          hideNoConfigScreen();
+          Pages.planning.render();
+          App._refreshNotifBadge();
+        } catch (e) {
+          this._updateStatus(false);
+          this._showError('❌ Connexion échouée : ' + e.message);
+        }
       });
     },
 
     test() {
       run(async () => {
-        const url = document.getElementById('settings-url').value.trim();
-        const key = document.getElementById('settings-key').value.trim();
-        if (!url || !key) { toast('Complétez l\'URL et la clé', 'error'); return; }
+        const apiKey    = document.getElementById('settings-apikey').value.trim();
+        const projectId = document.getElementById('settings-projectid').value.trim();
+        const appId     = document.getElementById('settings-appid').value.trim();
+        if (!apiKey || !projectId || !appId) { toast('Complétez les 3 champs', 'error'); return; }
 
-        DB.saveSupabaseConfig({ url, anonKey: key });
+        DB.saveFirebaseConfig({ apiKey, projectId, appId });
         document.getElementById('settings-error').style.display = 'none';
 
         try {
-          const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/categories?limit=1`, {
-            headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
-          });
-          if (r.ok) {
-            toast('✅ Connexion réussie !', 'success');
-            this._updateStatus(true);
-          } else if (r.status === 404) {
-            this._updateStatus(false);
-            this._showError('❌ Erreur 404 : la table "categories" n\'existe pas encore. Exécutez le script sql/schema.sql dans Supabase → SQL Editor, puis réessayez.');
-          } else if (r.status === 401) {
-            this._updateStatus(false);
-            this._showError('❌ Erreur 401 : clé invalide ou incorrecte. Vérifiez que vous avez copié la clé "anon public" depuis Settings → API.');
-          } else {
-            this._updateStatus(false);
-            const body = await r.text();
-            this._showError(`❌ Erreur ${r.status} : ${body.slice(0, 200)}`);
-          }
+          await DB.init();
+          await DB.ping();
+          toast('✅ Connexion Firebase réussie !', 'success');
+          this._updateStatus(true);
         } catch (e) {
           this._updateStatus(false);
-          this._showError('❌ Connexion impossible. Vérifiez l\'URL (elle doit commencer par https://) et votre connexion internet.');
+          let msg = '❌ ' + e.message;
+          if (e.message.includes('permission') || e.message.includes('PERMISSION_DENIED')) {
+            msg = '❌ Accès refusé : assurez-vous que Firestore est en "mode test" (règles ouvertes) dans Firebase Console → Firestore → Règles.';
+          } else if (e.message.includes('not-found') || e.message.includes('projectId')) {
+            msg = '❌ Projet introuvable : vérifiez le Project ID.';
+          } else if (e.message.includes('api-key') || e.message.includes('API_KEY')) {
+            msg = '❌ Clé API invalide : vérifiez l\'apiKey.';
+          }
+          this._showError(msg);
         }
       });
     },

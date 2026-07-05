@@ -12,6 +12,12 @@ const App = {
       showNoConfigScreen();
       return;
     }
+    try {
+      await DB.init();
+    } catch (e) {
+      showNoConfigScreen();
+      return;
+    }
     hideNoConfigScreen();
     Pages.planning.render();
     await this._initLastNotifId();
@@ -222,25 +228,27 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('confirm-no').addEventListener('click', () =>
     document.getElementById('confirm-overlay').style.display = 'none');
 
-  // Écran de configuration Supabase (1ère utilisation)
+  // Écran de configuration Firebase (1ère utilisation)
   const cfgForm = document.getElementById('no-config-form');
   if (cfgForm) {
     cfgForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const url = document.getElementById('nc-url').value.trim();
-      const key = document.getElementById('nc-key').value.trim();
-      if (!url || !key) { alert('URL et clé obligatoires'); return; }
-      DB.saveSupabaseConfig({ url, anonKey: key });
+      const apiKey   = document.getElementById('nc-apikey').value.trim();
+      const projectId = document.getElementById('nc-projectid').value.trim();
+      const appId    = document.getElementById('nc-appid').value.trim();
+      if (!apiKey || !projectId || !appId) { alert('Les 3 champs sont obligatoires'); return; }
+      DB.saveFirebaseConfig({ apiKey, projectId, appId });
       const btn = cfgForm.querySelector('button[type=submit]');
-      btn.disabled = true; btn.textContent = 'Test…';
-      const ok = await DB.ping().catch(() => false);
-      if (ok) {
+      btn.disabled = true; btn.textContent = '⏳ Connexion…';
+      try {
+        await DB.init();
+        await DB.ping();
         hideNoConfigScreen();
         App.init();
-      } else {
-        btn.disabled = false; btn.textContent = '🔌 Se connecter à Supabase';
-        alert('❌ Connexion impossible. Vérifiez l\'URL, la clé anon, et que le schéma SQL a bien été exécuté.');
-        DB.saveSupabaseConfig({});
+      } catch (e) {
+        btn.disabled = false; btn.textContent = '🔌 Se connecter à Firebase';
+        alert('❌ Connexion impossible : ' + e.message + '\n\nVérifiez les 3 valeurs et que Firestore est activé en mode test dans votre projet Firebase.');
+        DB.clearFirebaseConfig();
       }
     });
   }

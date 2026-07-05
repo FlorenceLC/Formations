@@ -1,100 +1,101 @@
 /**
- * db.js — Couche d'accès Supabase
- * Pas d'authentification. Pas de localStorage pour les données métier.
- * Seule la config Supabase (URL + clé) est stockée en local, par appareil.
+ * db.js — Couche d'accès aux données Firestore (Firebase v9 modular)
+ * Chargé via CDN dans index.html, aucun serveur ni build requis.
+ * La config Firebase est le seul élément stocké en localStorage, par appareil.
  */
 
 /* =========================================================
-   CONFIG SUPABASE (seul élément en localStorage)
+   CONFIG FIREBASE (seul élément en localStorage)
 ========================================================= */
-const SupabaseConfig = {
-  _key: 'ftsi_supabase_config',
+const FirebaseConfig = {
+  _key: 'ftsi_firebase_config',
   get() {
     try { return JSON.parse(localStorage.getItem(this._key) || '{}'); } catch { return {}; }
   },
   set(cfg) { localStorage.setItem(this._key, JSON.stringify(cfg)); },
-  isReady() { const c = this.get(); return !!(c.url && c.anonKey); },
+  isReady() {
+    const c = this.get();
+    return !!(c.apiKey && c.projectId);
+  },
+  clear() { localStorage.removeItem(this._key); },
 };
 
 /* =========================================================
-   CLIENT REST SUPABASE
+   INSTANCE FIRESTORE (initialisée après config)
 ========================================================= */
-const Supa = {
-  _cfg() { return SupabaseConfig.get(); },
+let _db = null;
 
-  _headers() {
-    const { anonKey } = this._cfg();
-    return {
-      'Content-Type': 'application/json',
-      'apikey': anonKey,
-      'Authorization': `Bearer ${anonKey}`,
-      'Prefer': 'return=representation',
-    };
-  },
+function getDb() {
+  if (!_db) throw new Error('Firestore non initialisé — configurez Firebase d\'abord.');
+  return _db;
+}
 
-  _url(table, query = '') {
-    const { url } = this._cfg();
-    return `${url.replace(/\/$/, '')}/rest/v1/${table}${query ? '?' + query : ''}`;
-  },
+async function initFirestore() {
+  const cfg = FirebaseConfig.get();
+  if (!cfg.apiKey || !cfg.projectId) throw new Error('Configuration Firebase incomplète.');
 
-  async select(table, query = '') {
-    const r = await fetch(this._url(table, query), {
-      method: 'GET',
-      headers: { ...this._headers(), 'Accept': 'application/json' },
-    });
-    if (!r.ok) throw new Error(`SELECT ${table} → ${r.status} ${await r.text()}`);
-    return r.json();
-  },
+  const { initializeApp, getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+  const { getFirestore, connectFirestoreEmulator } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
 
-  async insert(table, data) {
-    const r = await fetch(this._url(table), {
-      method: 'POST',
-      headers: this._headers(),
-      body: JSON.stringify(data),
-    });
-    if (!r.ok) throw new Error(`INSERT ${table} → ${r.status} ${await r.text()}`);
-    const result = await r.json();
-    return Array.isArray(result) ? result[0] : result;
-  },
+  const app = getApps().length ? getApp() : initializeApp(cfg);
+  _db = getFirestore(app);
+  return _db;
+}
 
-  async upsert(table, data) {
-    const r = await fetch(this._url(table), {
-      method: 'POST',
-      headers: { ...this._headers(), 'Prefer': 'return=representation,resolution=merge-duplicates' },
-      body: JSON.stringify(data),
-    });
-    if (!r.ok) throw new Error(`UPSERT ${table} → ${r.status} ${await r.text()}`);
-    const result = await r.json();
-    return Array.isArray(result) ? result[0] : result;
-  },
+/* =========================================================
+   HELPERS FIRESTORE
+========================================================= */
+async function col(name) {
+  const { collection } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  return collection(getDb(), name);
+}
 
-  async update(table, id, data) {
-    const r = await fetch(this._url(table, `id=eq.${id}`), {
-      method: 'PATCH',
-      headers: this._headers(),
-      body: JSON.stringify(data),
-    });
-    if (!r.ok) throw new Error(`UPDATE ${table} → ${r.status} ${await r.text()}`);
-    const result = await r.json();
-    return Array.isArray(result) ? result[0] : result;
-  },
+async function fsGetAll(collectionName, orderField = null) {
+  const { collection, getDocs, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const ref = collection(getDb(), collectionName);
+  const q = orderField ? query(ref, orderBy(orderField)) : ref;
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
 
-  async delete(table, id) {
-    const r = await fetch(this._url(table, `id=eq.${id}`), {
-      method: 'DELETE',
-      headers: this._headers(),
-    });
-    if (!r.ok) throw new Error(`DELETE ${table} → ${r.status} ${await r.text()}`);
-  },
+async function fsGet(collectionName, id) {
+  const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const ref = doc(getDb(), collectionName, id);
+  const snap = await getDoc(ref);
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
 
-  async ping() {
-    const r = await fetch(this._url('categories', 'limit=1'), {
-      method: 'GET',
-      headers: { ...this._headers(), 'Accept': 'application/json' },
-    });
-    return r.ok;
-  },
-};
+async function fsSet(collectionName, id, data) {
+  const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const ref = doc(getDb(), collectionName, id);
+  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+  await setDoc(ref, clean, { merge: true });
+  return { id, ...clean };
+}
+
+async function fsDelete(collectionName, id) {
+  const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  await deleteDoc(doc(getDb(), collectionName, id));
+}
+
+async function fsAdd(collectionName, data) {
+  const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const ref = collection(getDb(), collectionName);
+  const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+  const docRef = await addDoc(ref, clean);
+  return { id: docRef.id, ...clean };
+}
+
+async function fsQuery(collectionName, filters = [], orderField = null) {
+  const { collection, getDocs, query, orderBy, where } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+  const ref = collection(getDb(), collectionName);
+  const constraints = [];
+  filters.forEach(([field, op, value]) => constraints.push(where(field, op, value)));
+  if (orderField) constraints.push(orderBy(orderField));
+  const q = query(ref, ...constraints);
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
 
 /* =========================================================
    GÉNÉRATEUR D'ID
@@ -104,87 +105,105 @@ function newId() {
 }
 
 /* =========================================================
-   DB — API PUBLIQUE (async)
+   DB — API PUBLIQUE (async, même interface qu'avant)
 ========================================================= */
 const DB = {
 
   // ---- CONFIG ----
-  getSupabaseConfig: () => SupabaseConfig.get(),
-  saveSupabaseConfig: (cfg) => SupabaseConfig.set(cfg),
-  isConfigured: () => SupabaseConfig.isReady(),
-  ping: () => Supa.ping(),
+  getFirebaseConfig: () => FirebaseConfig.get(),
+  saveFirebaseConfig: (cfg) => FirebaseConfig.set(cfg),
+  clearFirebaseConfig: () => FirebaseConfig.clear(),
+  isConfigured: () => FirebaseConfig.isReady(),
+
+  async init() {
+    await initFirestore();
+  },
+
+  async ping() {
+    // Vérifie qu'on peut lire la collection catégories
+    await fsGetAll('categories');
+    return true;
+  },
 
   // ---- CATEGORIES ----
   async getCategories() {
-    return Supa.select('categories', 'order=nom.asc');
+    const rows = await fsGetAll('categories', 'nom');
+    return rows.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   },
 
   async saveCategory(cat) {
-    const row = { id: cat.id || newId(), nom: cat.nom, couleur: cat.couleur || '#2563EB' };
-    return Supa.upsert('categories', row);
+    const id = cat.id || newId();
+    return fsSet('categories', id, { nom: cat.nom, couleur: cat.couleur || '#2563EB' });
   },
 
   // ---- LIEUX ----
   async getLieux() {
-    return Supa.select('lieux', 'order=nom.asc');
+    const rows = await fsGetAll('lieux', 'nom');
+    return rows.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   },
+
   async saveLieu(item) {
-    const row = { id: item.id || newId(), nom: item.nom };
-    return Supa.upsert('lieux', row);
+    const id = item.id || newId();
+    return fsSet('lieux', id, { nom: item.nom });
   },
+
   async deleteLieu(id) {
-    return Supa.delete('lieux', id);
+    return fsDelete('lieux', id);
   },
 
   // ---- FORMATEURS ----
   async getFormateurs() {
-    return Supa.select('formateurs', 'order=nom.asc');
+    const rows = await fsGetAll('formateurs', 'nom');
+    return rows.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   },
+
   async saveFormateur(item) {
-    const row = { id: item.id || newId(), nom: item.nom };
-    return Supa.upsert('formateurs', row);
+    const id = item.id || newId();
+    return fsSet('formateurs', id, { nom: item.nom });
   },
+
   async deleteFormateur(id) {
-    return Supa.delete('formateurs', id);
+    return fsDelete('formateurs', id);
   },
 
   // ---- FORMATIONS ----
   async getFormations(filters = {}) {
-    let query = 'order=date_debut.asc';
-    if (filters.dateFrom) query += `&date_debut=gte.${filters.dateFrom}`;
-    if (filters.dateTo)   query += `&date_debut=lte.${filters.dateTo}`;
-    const rows = await Supa.select('formations', query);
-    return rows.map(this._mapFormation);
+    let rows = await fsGetAll('formations', 'dateDebut');
+
+    if (filters.dateFrom) rows = rows.filter(f => f.dateDebut >= filters.dateFrom);
+    if (filters.dateTo)   rows = rows.filter(f => f.dateDebut <= filters.dateTo);
+
+    return rows.map(this._mapFormation).sort((a, b) => (a.dateDebut || '').localeCompare(b.dateDebut || ''));
   },
 
   async getFormationById(id) {
-    const rows = await Supa.select('formations', `id=eq.${id}&limit=1`);
-    return rows[0] ? this._mapFormation(rows[0]) : null;
+    const row = await fsGet('formations', id);
+    return row ? this._mapFormation(row) : null;
   },
 
   async saveFormation(f) {
     const isEdit = !!f.id;
-    const row = {
-      id: f.id || newId(),
-      categorie_id: f.categorieId || null,
-      description: f.description || '',
-      date_debut: f.dateDebut || null,
-      date_fin: f.dateFin || null,
-      lieu: f.lieu || '',
-      formateurs: f.formateurs || '',
-      places_max: f.placesMax || 10,
-      statut: f.statut || 'validee',
-      updated_at: new Date().toISOString(),
+    const id = f.id || newId();
+    const data = {
+      categorieId:  f.categorieId  || null,
+      description:  f.description  || '',
+      dateDebut:    f.dateDebut    || null,
+      dateFin:      f.dateFin      || null,
+      lieu:         f.lieu         || '',
+      formateurs:   f.formateurs   || '',
+      placesMax:    f.placesMax    || 10,
+      statut:       f.statut       || 'validee',
+      updatedAt:    new Date().toISOString(),
     };
-    const result = await Supa.upsert('formations', row);
-    const mapped = this._mapFormation(result);
+    const result = await fsSet('formations', id, data);
+    const mapped = this._mapFormation({ id, ...data });
 
-    // Notification de création / modification
+    // Notification
     const cats = await this.getCategories();
     const catName = cats.find(c => c.id === mapped.categorieId)?.nom || 'Formation';
     const dateStr = mapped.dateDebut ? new Date(mapped.dateDebut).toLocaleDateString('fr-FR') : '';
     await this.addNotification({
-      formationId: mapped.id,
+      formationId: id,
       type: isEdit ? 'modification' : 'creation',
       message: isEdit
         ? `Formation modifiée : ${catName} (${dateStr})`
@@ -199,7 +218,7 @@ const DB = {
     const cats = await this.getCategories();
     const catName = cats.find(c => c.id === f?.categorieId)?.nom || 'Formation';
     const dateStr = f?.dateDebut ? new Date(f.dateDebut).toLocaleDateString('fr-FR') : '';
-    await Supa.delete('formations', id);
+    await fsDelete('formations', id);
     await this.addNotification({
       formationId: id,
       type: 'suppression',
@@ -212,7 +231,7 @@ const DB = {
     const cats = await this.getCategories();
     const catName = cats.find(c => c.id === f?.categorieId)?.nom || 'Formation';
     const dateStr = f?.dateDebut ? new Date(f.dateDebut).toLocaleDateString('fr-FR') : '';
-    await Supa.update('formations', id, { statut, updated_at: new Date().toISOString() });
+    await fsSet('formations', id, { statut, updatedAt: new Date().toISOString() });
     await this.addNotification({
       formationId: id,
       type: statut === 'annulee' ? 'annulation' : 'modification',
@@ -225,45 +244,49 @@ const DB = {
   _mapFormation(row) {
     if (!row) return null;
     return {
-      id: row.id,
-      categorieId: row.categorie_id,
+      id:          row.id,
+      categorieId: row.categorieId || null,
       description: row.description || '',
-      dateDebut: row.date_debut,
-      dateFin: row.date_fin,
-      lieu: row.lieu || '',
-      formateurs: row.formateurs || '',
-      placesMax: row.places_max || 10,
-      statut: row.statut || 'validee',
+      dateDebut:   row.dateDebut   || null,
+      dateFin:     row.dateFin     || null,
+      lieu:        row.lieu        || '',
+      formateurs:  row.formateurs  || '',
+      placesMax:   row.placesMax   || 10,
+      statut:      row.statut      || 'validee',
     };
   },
 
   // ---- NOTIFICATIONS ----
   async getNotifications(limit = 50) {
-    return Supa.select('notifications', `order=created_at.desc&limit=${limit}`);
+    const { collection, getDocs, query, orderBy, limit: fsLimit } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    const ref = collection(getDb(), 'notifications');
+    const q = query(ref, orderBy('createdAt', 'desc'), fsLimit(limit));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
 
   async countUnread() {
-    const rows = await Supa.select('notifications', 'lue=eq.false&select=id');
+    const rows = await fsQuery('notifications', [['lue', '==', false]]);
     return rows.length;
   },
 
   async addNotification({ formationId, type, message }) {
-    return Supa.insert('notifications', {
-      id: newId(),
-      formation_id: formationId || null,
+    return fsAdd('notifications', {
+      formationId: formationId || null,
       type,
       message,
       lue: false,
+      createdAt: new Date().toISOString(),
     });
   },
 
   async markNotificationRead(id) {
-    await Supa.update('notifications', id, { lue: true });
+    return fsSet('notifications', id, { lue: true });
   },
 
   async markAllNotificationsRead() {
-    const unread = await Supa.select('notifications', 'lue=eq.false&select=id');
-    await Promise.all(unread.map(n => Supa.update('notifications', n.id, { lue: true })));
+    const unread = await fsQuery('notifications', [['lue', '==', false]]);
+    await Promise.all(unread.map(n => fsSet('notifications', n.id, { lue: true })));
   },
 };
 
@@ -281,11 +304,8 @@ function hideNoConfigScreen() {
   document.getElementById('app').style.display = 'flex';
 }
 
-/* =========================================================
-   EXPORT
-========================================================= */
 window.DB = DB;
-window.SupabaseConfig = SupabaseConfig;
+window.FirebaseConfig = FirebaseConfig;
 window.newId = newId;
 window.showNoConfigScreen = showNoConfigScreen;
 window.hideNoConfigScreen = hideNoConfigScreen;
