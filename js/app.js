@@ -219,6 +219,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('side-menu-overlay').classList.remove('open');
     Pages.settings.open();
   });
+  document.getElementById('menu-btn-help').addEventListener('click', () => {
+    document.getElementById('side-menu-overlay').classList.remove('open');
+    Modal.open('help-modal');
+  });
 
   // Close modals on backdrop click
   document.querySelectorAll('.modal-overlay').forEach(overlay =>
