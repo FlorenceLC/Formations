@@ -220,9 +220,66 @@
       </button>
     </div>
     <div class="side-menu-bottom">
+      <button class="side-menu-item" id="menu-btn-help">
+        <span class="nav-icon">❓</span> Aide / Mode d'emploi
+      </button>
       <button class="side-menu-item" id="menu-btn-settings">
         <span class="nav-icon">⚙️</span> Paramètres
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : AIDE / MODE D'EMPLOI ===== -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <span class="modal-title">❓ Aide — Comment utiliser l'application</span>
+      <button class="modal-close" onclick="Modal.close('help-modal')">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+
+      <div class="detail-row"><span class="detail-icon">📅</span><div>
+        <div class="detail-key">Se déplacer dans le planning</div>
+        <div class="detail-val">Utilisez ‹ › pour changer de mois/semaine, « Aujourd'hui » pour revenir à la date du jour, et les onglets Mois/Semaine pour changer de vue.</div>
+      </div></div>
+
+      <div class="detail-row"><span class="detail-icon">➕</span><div>
+        <div class="detail-key">Créer une formation</div>
+        <div class="detail-val">Bouton « ➕ Nouvelle formation ». Choisissez une catégorie (ou créez-en une nouvelle directement dans le formulaire), une date, un créneau, un lieu, les formateurs, puis « 💾 Enregistrer ».</div>
+      </div></div>
+
+      <div class="detail-row"><span class="detail-icon">🔍</span><div>
+        <div class="detail-key">Voir le détail d'une formation</div>
+        <div class="detail-val">Cliquez sur une formation dans le planning. Vous pourrez la modifier ✏️, l'annuler ✖, la réactiver ✔ ou la supprimer 🗑.</div>
+      </div></div>
+
+      <div class="detail-row"><span class="detail-icon">👨‍🏫</span><div>
+        <div class="detail-key">Gérer formateurs et lieux</div>
+        <div class="detail-val">Dans le formulaire d'une formation, cliquez sur « ✏️ Gérer » à côté du champ Lieu ou Formateurs pour ajouter, modifier ou supprimer un élément de la liste.</div>
+      </div></div>
+
+      <div class="detail-row"><span class="detail-icon">🔄</span><div>
+        <div class="detail-key">Rafraîchir</div>
+        <div class="detail-val">L'appli ne se met pas à jour toute seule en continu. Cliquez sur 🔄 en haut de l'écran pour voir les dernières modifications de vos collègues. Un léger délai est normal.</div>
+      </div></div>
+
+      <div class="detail-row"><span class="detail-icon">🔔</span><div>
+        <div class="detail-key">Notifications</div>
+        <div class="detail-val">La cloche 🔔 signale les créations 🆕, modifications ✏️, annulations ⚠️ et suppressions 🗑 de formations faites par toute l'équipe.</div>
+      </div></div>
+
+      <div class="detail-row"><span class="detail-icon">⚙️</span><div>
+        <div class="detail-key">Paramètres</div>
+        <div class="detail-val">Accessible depuis le menu ☰. À utiliser uniquement en cas de problème de connexion à la base de données.</div>
+      </div></div>
+
+      <div style="margin-top:18px;padding:14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
+        📄 Pour le guide complet et détaillé, consultez le mode d'emploi Word fourni par la personne qui gère l'application.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="Modal.close('help-modal')">Compris 👍</button>
     </div>
   </div>
 </div>
