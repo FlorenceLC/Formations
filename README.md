@@ -1,4 +1,4 @@
-# 🦅 Formations FTSI — Planning
+# 🦅 Formations — Planning
 
 Application web de planning partagé des formations.
 Base de données **Firebase Firestore** — gratuite, sans mise en pause, données persistantes indéfiniment.
@@ -10,7 +10,7 @@ Base de données **Firebase Firestore** — gratuite, sans mise en pause, donné
 ### 1. Créer le projet Firebase
 
 1. Allez sur **firebase.google.com** → Se connecter avec Google → Créer un projet
-2. Nom : `formations-ftsi` → désactivez Google Analytics → Créer
+2. Nom : `formations` → désactivez Google Analytics → Créer
 
 ### 2. Activer Firestore
 
@@ -20,7 +20,7 @@ Base de données **Firebase Firestore** — gratuite, sans mise en pause, donné
 ### 3. Créer l'application Web
 
 1. Roue dentée ⚙️ → **Paramètres du projet** → Général
-2. **"Vos applications"** → icône **</>** (Web) → Surnom : `ftsi` → Enregistrer
+2. **"Vos applications"** → icône **</>** (Web) → Surnom : `formations` → Enregistrer
 3. Copiez `apiKey`, `projectId` et `appId` du bloc `firebaseConfig`
 
 ### 4. Connecter l'application
@@ -32,18 +32,6 @@ Base de données **Firebase Firestore** — gratuite, sans mise en pause, donné
 
 Chaque membre ouvre `index.html` et saisit les 3 valeurs une fois.
 Tout est synchronisé via Firestore.
-
----
-
-## 🔧 Dépannage
-
-| Problème | Solution |
-|---|---|
-| Accès refusé | Firestore Console → Règles → mode test (`allow read, write: if true`) |
-| Projet introuvable | Vérifiez le `projectId` |
-| Clé API invalide | Vérifiez l'`apiKey` |
-
-Changer la config : menu ☰ → **Paramètres** (en bas du menu).
 
 ---
 
