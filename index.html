@@ -237,6 +237,9 @@
       <button class="side-menu-item active" data-page="planning">
         <span class="nav-icon">📅</span> Planning
       </button>
+      <button class="side-menu-item" id="menu-btn-help">
+        <span class="nav-icon">❓</span> Aide / Mode d'emploi
+      </button>
     </div>
     <div class="side-menu-bottom">
       <button class="side-menu-item" id="menu-btn-settings">
@@ -280,21 +283,102 @@
         <strong style="color:var(--text);">Où trouver ces valeurs ?</strong><br>
         Firebase → ⚙️ Paramètres du projet → Général → faites défiler jusqu'à <strong>"Vos applications"</strong> et copiez les valeurs du bloc <code>firebaseConfig</code>.
       </div>
-    </div>
+
       <!-- Zone de maintenance -->
-      <div style="margin-top:24px;padding:14px;background:var(--danger-light);border-radius:8px;border:1px solid var(--danger);">
+      <div style="margin-top:20px;padding:14px;background:var(--danger-light);border-radius:8px;border:1px solid var(--danger);">
         <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">🗑️ Nettoyage des données</div>
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
           Supprime définitivement toutes les formations des mois précédents (le mois en cours est conservé).
         </div>
-        <button class="btn btn-danger btn-sm" onclick="Pages.settings.deleteOldData()" style="width:100%;">
+        <button class="btn btn-danger" onclick="Pages.settings.deleteOldData()" style="width:100%;">
           🗑️ Supprimer les formations des mois passés
         </button>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="Pages.settings.test()">🔌 Tester la connexion</button>
+      <button class="btn btn-ghost" onclick="Pages.settings.test()">🔌 Tester</button>
       <button class="btn btn-primary" onclick="Pages.settings.save()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL : AIDE / MODE D'EMPLOI ===== -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <span class="modal-title">❓ Aide — Mode d'emploi</span>
+      <button class="modal-close" onclick="Modal.close('help-modal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding-bottom:8px;">
+
+      <div class="help-section">
+        <div class="help-title">📅 Naviguer dans le planning</div>
+        <div class="help-body">
+          Utilisez les flèches <strong>‹</strong> et <strong>›</strong> pour passer au mois ou à la semaine précédente/suivante. Le bouton <strong>Aujourd'hui</strong> revient à la date du jour. Basculez entre la vue <strong>Mois</strong> et la vue <strong>Semaine</strong> avec les onglets en haut à droite.
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">➕ Créer une formation</div>
+        <div class="help-body">
+          Cliquez sur le bouton <strong>➕ Nouvelle formation</strong> en haut à droite, ou cliquez directement sur <strong>un jour vide</strong> du calendrier : le formulaire s'ouvre avec la date déjà remplie.
+          <ul class="help-list">
+            <li><strong>Catégorie</strong> : choisissez parmi les existantes ou créez-en une nouvelle directement dans le formulaire.</li>
+            <li><strong>Créneau</strong> : Matin (8h–12h), Après-midi (13h–17h), Nuit (19h–1h) ou <strong>Journée / Plusieurs jours</strong> pour les formations longues.</li>
+            <li><strong>Journée / Plusieurs jours</strong> : indiquez une date de fin différente si la formation dure plusieurs jours — elle apparaîtra alors sur chaque jour concerné dans le calendrier.</li>
+            <li><strong>Formateurs</strong> : cochez un ou plusieurs noms dans la liste. Gérez la liste via le bouton ✏️ Gérer.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🔍 Voir le détail d'une formation</div>
+        <div class="help-body">
+          Cliquez sur une formation dans le calendrier pour ouvrir sa fiche complète (horaires, formateurs, lieu, places, statut). Depuis cette fiche vous pouvez <strong>modifier</strong>, <strong>annuler</strong> ou <strong>supprimer</strong> la formation.
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">✏️ Modifier ou annuler une formation</div>
+        <div class="help-body">
+          Ouvrez la fiche de la formation (clic sur le calendrier), puis :
+          <ul class="help-list">
+            <li><strong>✏️ Modifier</strong> : change les informations, sauvegardez avec 💾.</li>
+            <li><strong>✖ Annuler la formation</strong> : la formation reste visible en rouge sur le planning (pour mémoire) mais est marquée comme annulée.</li>
+            <li><strong>✔ Réactiver</strong> : remet une formation annulée en statut normal.</li>
+            <li><strong>🗑 Supprimer</strong> : supprime définitivement la formation.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">👨‍🏫 Filtrer par formateur</div>
+        <div class="help-body">
+          Utilisez le menu déroulant <strong>👨‍🏫 Tous les formateurs</strong> pour n'afficher que les formations d'un formateur précis. Les autres formations apparaissent en grisé. Ce filtre est enregistré sur votre appareil.
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🔔 Notifications</div>
+        <div class="help-body">
+          La cloche 🔔 en haut à droite affiche les dernières actions enregistrées dans le planning (créations, modifications, annulations). Le badge rouge indique le nombre de notifications non lues.
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">⚙️ Paramètres et maintenance</div>
+        <div class="help-body">
+          Accédez aux paramètres via le menu ☰ → <strong>Paramètres</strong>.
+          <ul class="help-list">
+            <li>Vous pouvez tester et modifier la connexion à Firebase.</li>
+            <li>Le bouton <strong>🗑️ Supprimer les formations des mois passés</strong> efface définitivement les formations antérieures au mois en cours pour alléger la base de données. Le mois en cours est toujours conservé.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="Modal.close('help-modal')">Fermer</button>
     </div>
   </div>
 </div>
