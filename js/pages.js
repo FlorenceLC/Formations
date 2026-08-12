@@ -154,8 +154,18 @@ const Pages = {
       const byDate = {};
       formations.forEach(f => {
         if (!f.dateDebut) return;
-        const key = Fmt.isoDate(new Date(f.dateDebut));
-        (byDate[key] = byDate[key] || []).push(f);
+        const dDebut = new Date(f.dateDebut); dDebut.setHours(0,0,0,0);
+        const dFin   = f.dateFin ? new Date(f.dateFin) : dDebut;
+        dFin.setHours(0,0,0,0);
+        // Indexer la formation sur chaque jour de sa plage (max 60 jours pour éviter une boucle infinie)
+        let cur = new Date(dDebut);
+        let safety = 0;
+        while (cur <= dFin && safety < 60) {
+          const key = Fmt.isoDate(cur);
+          (byDate[key] = byDate[key] || []).push(f);
+          cur.setDate(cur.getDate() + 1);
+          safety++;
+        }
       });
 
       // Construire la liste des semaines (lundi à vendredi) couvrant le mois
@@ -227,7 +237,12 @@ const Pages = {
         const d = new Date(ws); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
         const isToday  = d.getTime() === today.getTime();
         const key      = Fmt.isoDate(d);
-        const dayForms = formations.filter(f => f.dateDebut && Fmt.isoDate(new Date(f.dateDebut)) === key);
+        const dayForms = formations.filter(f => {
+          if (!f.dateDebut) return false;
+          const dDebut = new Date(f.dateDebut); dDebut.setHours(0,0,0,0);
+          const dFin   = f.dateFin ? new Date(f.dateFin) : dDebut; dFin.setHours(0,0,0,0);
+          return d >= dDebut && d <= dFin;
+        });
 
         const wdateStr = Fmt.isoDate(d);
         html += `<div class="week-col${isToday ? ' today' : ''} show" onclick="Pages.planning._onCellClick(event,'${wdateStr}')">
@@ -285,7 +300,16 @@ const Pages = {
         document.getElementById('detail-modal-title').textContent = cat?.nom || '—';
         document.getElementById('detail-modal-body').innerHTML = `
           <div class="detail-row"><span class="detail-icon">🏷</span><div><div class="detail-key">Catégorie</div><div class="detail-val">${cat?.nom||'—'}</div></div></div>
-          <div class="detail-row"><span class="detail-icon">⏰</span><div><div class="detail-key">Horaires</div><div class="detail-val">${Fmt.date(f.dateDebut)} · ${Fmt.time(f.dateDebut)} – ${Fmt.time(f.dateFin)} (${Fmt.dureeH(f.dateDebut,f.dateFin)})</div></div></div>
+          <div class="detail-row"><span class="detail-icon">⏰</span><div><div class="detail-key">Horaires</div><div class="detail-val">${(() => {
+            const dDebut = new Date(f.dateDebut);
+            const dFin   = new Date(f.dateFin);
+            const sameDay = Fmt.isoDate(dDebut) === Fmt.isoDate(dFin);
+            if (sameDay) {
+              return `${Fmt.date(f.dateDebut)} · ${Fmt.time(f.dateDebut)} – ${Fmt.time(f.dateFin)} (${Fmt.dureeH(f.dateDebut,f.dateFin)})`;
+            } else {
+              return `Du ${Fmt.date(f.dateDebut)} au ${Fmt.date(f.dateFin)}`;
+            }
+          })()}</div></div></div>
           <div class="detail-row"><span class="detail-icon">👨‍🏫</span><div><div class="detail-key">Formateurs</div><div class="detail-val">${f.formateurs||'—'}</div></div></div>
           <div class="detail-row"><span class="detail-icon">📍</span><div><div class="detail-key">Lieu</div><div class="detail-val">${f.lieu||'—'}</div></div></div>
           <div class="detail-row"><span class="detail-icon">👥</span><div><div class="detail-key">Places maximum</div><div class="detail-val">${f.placesMax}</div></div></div>
