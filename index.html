@@ -140,17 +140,33 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Date <span style="color:var(--danger)">*</span></label>
+          <label class="form-label">Date de début <span style="color:var(--danger)">*</span></label>
           <input id="form-date" class="form-control" type="date">
         </div>
         <div class="form-group">
           <label class="form-label">Créneau <span style="color:var(--danger)">*</span></label>
-          <select id="form-creneau" class="form-control">
+          <select id="form-creneau" class="form-control" onchange="Pages.planning._onCreneauChange()">
             <option value="matin">🌅 Matin (8h–12h)</option>
             <option value="aprem">☀️ Après-midi (13h–17h)</option>
             <option value="nuit">🌙 Nuit (19h–1h)</option>
+            <option value="journee">🗓️ Journée / Plusieurs jours</option>
           </select>
         </div>
+      </div>
+
+      <!-- Champs visibles uniquement pour le créneau "Journée" -->
+      <div id="form-journee-row" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Heure de début</label>
+            <input id="form-heure-debut" class="form-control" type="time" value="08:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date de fin</label>
+            <input id="form-date-fin" class="form-control" type="date">
+          </div>
+        </div>
+        <div class="form-hint" style="margin-top:-8px;margin-bottom:12px;">Pour une formation sur plusieurs jours, modifiez la date de fin.</div>
       </div>
 
       <div class="form-row">
@@ -172,8 +188,11 @@
           <span>Formateurs</span>
           <button type="button" class="manage-link" onclick="Pages.lists.openManager('formateurs')">✏️ Gérer</button>
         </label>
-        <select id="form-formateurs" class="form-control" multiple size="4"></select>
-        <div class="form-hint">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs formateurs</div>
+        <!-- Liste de cases à cocher — plus simple qu'un multi-select avec Ctrl -->
+        <div id="form-formateurs-checks" class="formateurs-checklist"></div>
+        <!-- Select caché conservé pour la compatibilité avec le code existant -->
+        <select id="form-formateurs" class="form-control" multiple style="display:none;"></select>
+        <div class="form-hint">Cochez un ou plusieurs formateurs</div>
       </div>
 
       <div class="form-group">
@@ -220,66 +239,9 @@
       </button>
     </div>
     <div class="side-menu-bottom">
-      <button class="side-menu-item" id="menu-btn-help">
-        <span class="nav-icon">❓</span> Aide / Mode d'emploi
-      </button>
       <button class="side-menu-item" id="menu-btn-settings">
         <span class="nav-icon">⚙️</span> Paramètres
       </button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODAL : AIDE / MODE D'EMPLOI ===== -->
-<div class="modal-overlay" id="help-modal">
-  <div class="modal" style="max-width:640px;">
-    <div class="modal-header">
-      <span class="modal-title">❓ Aide — Comment utiliser l'application</span>
-      <button class="modal-close" onclick="Modal.close('help-modal')">✕</button>
-    </div>
-    <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
-
-      <div class="detail-row"><span class="detail-icon">📅</span><div>
-        <div class="detail-key">Se déplacer dans le planning</div>
-        <div class="detail-val">Utilisez ‹ › pour changer de mois/semaine, « Aujourd'hui » pour revenir à la date du jour, et les onglets Mois/Semaine pour changer de vue.</div>
-      </div></div>
-
-      <div class="detail-row"><span class="detail-icon">➕</span><div>
-        <div class="detail-key">Créer une formation</div>
-        <div class="detail-val">Bouton « ➕ Nouvelle formation ». Choisissez une catégorie (ou créez-en une nouvelle directement dans le formulaire), une date, un créneau, un lieu, les formateurs, puis « 💾 Enregistrer ».</div>
-      </div></div>
-
-      <div class="detail-row"><span class="detail-icon">🔍</span><div>
-        <div class="detail-key">Voir le détail d'une formation</div>
-        <div class="detail-val">Cliquez sur une formation dans le planning. Vous pourrez la modifier ✏️, l'annuler ✖, la réactiver ✔ ou la supprimer 🗑.</div>
-      </div></div>
-
-      <div class="detail-row"><span class="detail-icon">👨‍🏫</span><div>
-        <div class="detail-key">Gérer formateurs et lieux</div>
-        <div class="detail-val">Dans le formulaire d'une formation, cliquez sur « ✏️ Gérer » à côté du champ Lieu ou Formateurs pour ajouter, modifier ou supprimer un élément de la liste.</div>
-      </div></div>
-
-      <div class="detail-row"><span class="detail-icon">🔄</span><div>
-        <div class="detail-key">Rafraîchir</div>
-        <div class="detail-val">L'appli ne se met pas à jour toute seule en continu. Cliquez sur 🔄 en haut de l'écran pour voir les dernières modifications de vos collègues. Un léger délai est normal.</div>
-      </div></div>
-
-      <div class="detail-row"><span class="detail-icon">🔔</span><div>
-        <div class="detail-key">Notifications</div>
-        <div class="detail-val">La cloche 🔔 signale les créations 🆕, modifications ✏️, annulations ⚠️ et suppressions 🗑 de formations faites par toute l'équipe.</div>
-      </div></div>
-
-      <div class="detail-row"><span class="detail-icon">⚙️</span><div>
-        <div class="detail-key">Paramètres</div>
-        <div class="detail-val">Accessible depuis le menu ☰. À utiliser uniquement en cas de problème de connexion à la base de données.</div>
-      </div></div>
-
-      <div style="margin-top:18px;padding:14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
-        📄 Pour le guide complet et détaillé, consultez le mode d'emploi Word fourni par la personne qui gère l'application.
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="Modal.close('help-modal')">Compris 👍</button>
     </div>
   </div>
 </div>
@@ -317,6 +279,17 @@
       <div style="margin-top:20px;padding:14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
         <strong style="color:var(--text);">Où trouver ces valeurs ?</strong><br>
         Firebase → ⚙️ Paramètres du projet → Général → faites défiler jusqu'à <strong>"Vos applications"</strong> et copiez les valeurs du bloc <code>firebaseConfig</code>.
+      </div>
+    </div>
+      <!-- Zone de maintenance -->
+      <div style="margin-top:24px;padding:14px;background:var(--danger-light);border-radius:8px;border:1px solid var(--danger);">
+        <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">🗑️ Nettoyage des données</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+          Supprime définitivement toutes les formations des mois précédents (le mois en cours est conservé).
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="Pages.settings.deleteOldData()" style="width:100%;">
+          🗑️ Supprimer les formations des mois passés
+        </button>
       </div>
     </div>
     <div class="modal-footer">
