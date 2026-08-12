@@ -395,3 +395,31 @@ textarea.form-control { resize: vertical; min-height: 70px; }
   font-size: 12px;
   text-align: center;
 }
+
+/* ===== AIDE / MODE D'EMPLOI ===== */
+.help-section {
+  margin-bottom: 18px;
+  padding: 14px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary);
+}
+.help-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 7px;
+}
+.help-body {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+.help-list {
+  margin: 8px 0 0 0;
+  padding-left: 18px;
+}
+.help-list li {
+  margin-bottom: 5px;
+  line-height: 1.5;
+}
