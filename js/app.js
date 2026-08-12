@@ -152,17 +152,37 @@ function statusBadge(s) {
 
 /* ===== CRÉNEAUX HORAIRES ===== */
 const CRENEAUX = {
-  matin: { label: '🌅 Matin',      startH: 8,  startM: 0, endH: 12, endM: 0, endNextDay: false },
-  aprem: { label: '☀️ Après-midi', startH: 13, startM: 0, endH: 17, endM: 0, endNextDay: false },
-  nuit:  { label: '🌙 Nuit',       startH: 19, startM: 0, endH: 1,  endM: 0, endNextDay: true  },
+  matin:   { label: '🌅 Matin',                  startH: 8,  startM: 0, endH: 12, endM: 0, endNextDay: false },
+  aprem:   { label: '☀️ Après-midi',             startH: 13, startM: 0, endH: 17, endM: 0, endNextDay: false },
+  nuit:    { label: '🌙 Nuit',                   startH: 19, startM: 0, endH: 1,  endM: 0, endNextDay: true  },
+  journee: { label: '🗓️ Journée / Plusieurs jours', startH: 8,  startM: 0, endH: 17, endM: 0, endNextDay: false },
 };
 
 /* Construit dateDebut/dateFin ISO à partir d'une date (YYYY-MM-DD) et d'un créneau.
-   Le créneau "nuit" se termine après minuit : la date de fin passe au jour suivant. */
-function buildCreneauDates(dateStr, creneauKey) {
+   Le créneau "nuit" se termine après minuit : la date de fin passe au jour suivant.
+   Le créneau "journee" utilise une date de fin séparée et une heure de début personnalisable. */
+function buildCreneauDates(dateStr, creneauKey, dateFinStr = null, heureDebutStr = null) {
   const c = CRENEAUX[creneauKey];
   if (!c || !dateStr) return { dateDebut: null, dateFin: null };
   const [y, m, d] = dateStr.split('-').map(Number);
+
+  if (creneauKey === 'journee') {
+    let startH = c.startH, startM = c.startM;
+    if (heureDebutStr) {
+      const [hh, mm] = heureDebutStr.split(':').map(Number);
+      startH = hh; startM = mm;
+    }
+    const debut = new Date(y, m - 1, d, startH, startM, 0);
+    let fin;
+    if (dateFinStr) {
+      const [yf, mf, df] = dateFinStr.split('-').map(Number);
+      fin = new Date(yf, mf - 1, df, c.endH, c.endM, 0);
+    } else {
+      fin = new Date(y, m - 1, d, c.endH, c.endM, 0);
+    }
+    return { dateDebut: debut.toISOString(), dateFin: fin.toISOString() };
+  }
+
   const debut = new Date(y, m - 1, d, c.startH, c.startM, 0);
   const fin   = new Date(y, m - 1, d, c.endH, c.endM, 0);
   if (c.endNextDay) fin.setDate(fin.getDate() + 1);
@@ -170,8 +190,15 @@ function buildCreneauDates(dateStr, creneauKey) {
 }
 
 /* Devine le créneau à partir d'une heure de début (pour l'édition) */
-function guessCreneau(dateDebutIso) {
+function guessCreneau(dateDebutIso, dateFinIso) {
   if (!dateDebutIso) return 'matin';
+  // Journée : si la date de fin est différente du jour de début ou si les deux couvrent toute la journée
+  if (dateFinIso) {
+    const dDebut = new Date(dateDebutIso);
+    const dFin   = new Date(dateFinIso);
+    const sameDay = dDebut.toDateString() === dFin.toDateString();
+    if (!sameDay) return 'journee'; // plusieurs jours → journee
+  }
   const h = new Date(dateDebutIso).getHours();
   if (h < 13) return 'matin';
   if (h < 19) return 'aprem';
@@ -218,10 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('menu-btn-settings').addEventListener('click', () => {
     document.getElementById('side-menu-overlay').classList.remove('open');
     Pages.settings.open();
-  });
-  document.getElementById('menu-btn-help').addEventListener('click', () => {
-    document.getElementById('side-menu-overlay').classList.remove('open');
-    Modal.open('help-modal');
   });
 
   // Close modals on backdrop click

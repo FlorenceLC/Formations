@@ -186,7 +186,8 @@ const Pages = {
           const key       = Fmt.isoDate(d);
           const dayForms  = byDate[key] || [];
 
-          html += `<div class="cal-cell${!isCurrent ? ' other-month' : ''}${isToday ? ' today' : ''}" style="grid-column:${idx+1};">`;
+          const cellDateStr = Fmt.isoDate(d);
+          html += `<div class="cal-cell${!isCurrent ? ' other-month' : ''}${isToday ? ' today' : ''}" style="grid-column:${idx+1};" onclick="Pages.planning._onCellClick(event,'${cellDateStr}')">`;
           html += `<div style="display:flex;align-items:center;gap:6px;">
                       <div class="day-num">${d.getDate()}</div>
                       ${idx === 0 ? `<span style="font-size:10px;font-weight:700;color:var(--text-light);">S${week.weekNum}</span>` : ''}
@@ -228,7 +229,8 @@ const Pages = {
         const key      = Fmt.isoDate(d);
         const dayForms = formations.filter(f => f.dateDebut && Fmt.isoDate(new Date(f.dateDebut)) === key);
 
-        html += `<div class="week-col${isToday ? ' today' : ''} show">
+        const wdateStr = Fmt.isoDate(d);
+        html += `<div class="week-col${isToday ? ' today' : ''} show" onclick="Pages.planning._onCellClick(event,'${wdateStr}')">
           <div class="week-col-header"><div class="wday">${jours[i]}</div><div class="wdate">${d.getDate()}</div></div>
           <div class="week-col-body">`;
 
@@ -381,10 +383,15 @@ const Pages = {
       formSel.innerHTML = '';
       formateurs.forEach(fo => { const o=document.createElement('option'); o.value=fo.nom; o.textContent=fo.nom; formSel.appendChild(o); });
 
+      const creneau = f ? guessCreneau(f.dateDebut, f.dateFin) : 'matin';
+
+      const defaultDate = this._pendingDate || Fmt.isoDate(new Date());
+      this._pendingDate = null; // réinitialiser après usage
+
       document.getElementById('form-id').value          = id || '';
       document.getElementById('form-categorie').value   = f?.categorieId || '';
-      document.getElementById('form-date').value        = f?.dateDebut ? Fmt.isoDate(new Date(f.dateDebut)) : Fmt.isoDate(new Date());
-      document.getElementById('form-creneau').value     = f ? guessCreneau(f.dateDebut) : 'matin';
+      document.getElementById('form-date').value        = f?.dateDebut ? Fmt.isoDate(new Date(f.dateDebut)) : defaultDate;
+      document.getElementById('form-creneau').value     = creneau;
       document.getElementById('form-lieu').value         = f?.lieu || '';
       document.getElementById('form-places').value      = f?.placesMax || 10;
       document.getElementById('form-description').value = f?.description || '';
@@ -392,14 +399,69 @@ const Pages = {
       document.getElementById('form-new-categorie').value = '';
       document.getElementById('form-new-categorie-row').style.display = 'none';
 
-      // Pré-sélection des formateurs existants
+      // Champs journée
+      const dateFinEl    = document.getElementById('form-date-fin');
+      const heureDebutEl = document.getElementById('form-heure-debut');
+      if (f?.dateDebut) {
+        const hd = new Date(f.dateDebut);
+        heureDebutEl.value = `${String(hd.getHours()).padStart(2,'0')}:${String(hd.getMinutes()).padStart(2,'0')}`;
+      } else {
+        heureDebutEl.value = '08:00';
+      }
+      dateFinEl.value = f?.dateFin ? Fmt.isoDate(new Date(f.dateFin)) : defaultDate;
+      document.getElementById('form-journee-row').style.display = creneau === 'journee' ? 'block' : 'none';
+
+      // Pré-sélection des formateurs existants (checkboxes)
       const existing = (f?.formateurs || '').split(',').map(s => s.trim()).filter(Boolean);
-      Array.from(formSel.options).forEach(o => { o.selected = existing.includes(o.value); });
+      this._renderFormateursChecks(formSel, existing);
 
       Modal.open('form-modal');
     },
 
-    openNew() { this._openForm(); },
+    openNew(dateStr = null) {
+      this._pendingDate = dateStr;
+      this._openForm();
+    },
+
+    // Appelé quand on clique sur une cellule vide du calendrier
+    _onCellClick(e, dateStr) {
+      // Ne pas déclencher si on a cliqué sur un événement ou un bouton
+      if (e.target.closest('.cal-event,.cal-more,.week-event')) return;
+      this._pendingDate = dateStr;
+      this._openForm();
+    },
+
+    // Affecte la date cliquée avant d'ouvrir le formulaire
+    _pendingDate: null,
+
+    // Construit la liste de checkboxes pour les formateurs
+    _renderFormateursChecks(hiddenSelect, preSelected = []) {
+      const container = document.getElementById('form-formateurs-checks');
+      if (!container) return;
+      if (!hiddenSelect.options.length) {
+        container.innerHTML = '<div class="formateurs-checklist-empty">Aucun formateur — cliquez sur ✏️ Gérer pour en ajouter</div>';
+        return;
+      }
+      container.innerHTML = Array.from(hiddenSelect.options).map(o => `
+        <label>
+          <input type="checkbox" value="${o.value.replace(/"/g,'&quot;')}"${preSelected.includes(o.value) ? ' checked' : ''}>
+          ${o.text}
+        </label>
+      `).join('');
+    },
+
+    // Appelé quand le créneau change — affiche/cache les champs journée
+    _onCreneauChange() {
+      const creneau = document.getElementById('form-creneau').value;
+      const row = document.getElementById('form-journee-row');
+      if (!row) return;
+      row.style.display = creneau === 'journee' ? 'block' : 'none';
+      // Remplir date de fin par défaut avec la date de début si vide
+      if (creneau === 'journee') {
+        const dateFinEl = document.getElementById('form-date-fin');
+        if (!dateFinEl.value) dateFinEl.value = document.getElementById('form-date').value;
+      }
+    },
 
     save() {
       run(async () => {
@@ -408,7 +470,9 @@ const Pages = {
         const creneau = document.getElementById('form-creneau').value;
         if (!dateStr) { toast('La date est obligatoire', 'error'); return; }
 
-        const { dateDebut, dateFin } = buildCreneauDates(dateStr, creneau);
+        const dateFinStr   = creneau === 'journee' ? (document.getElementById('form-date-fin').value || dateStr) : null;
+        const heureDebutStr = creneau === 'journee' ? document.getElementById('form-heure-debut').value : null;
+        const { dateDebut, dateFin } = buildCreneauDates(dateStr, creneau, dateFinStr, heureDebutStr);
 
         let categorieId = document.getElementById('form-categorie').value;
         if (categorieId === '__new__') {
@@ -419,7 +483,10 @@ const Pages = {
         }
         if (!categorieId) { toast('La catégorie est obligatoire', 'error'); return; }
 
-        const formateurs = Array.from(document.getElementById('form-formateurs').selectedOptions).map(o => o.value).join(', ');
+        // Lire les formateurs depuis les checkboxes (plus simple pour les utilisateurs)
+        const formateurs = Array.from(
+          document.querySelectorAll('#form-formateurs-checks input[type="checkbox"]:checked')
+        ).map(cb => cb.value).join(', ');
 
         await DB.saveFormation({
           id: id || undefined,
@@ -568,11 +635,15 @@ const Pages = {
         lieuSel.value = current;
       }
       if (this._current === 'formateurs' && formSel) {
-        const selected = Array.from(formSel.selectedOptions).map(o => o.value);
+        // Récupérer les formateurs déjà cochés dans les checkboxes
+        const selected = Array.from(
+          document.querySelectorAll('#form-formateurs-checks input[type="checkbox"]:checked')
+        ).map(cb => cb.value);
         const formateurs = await DB.getFormateurs();
         formSel.innerHTML = '';
         formateurs.forEach(fo => { const o=document.createElement('option'); o.value=fo.nom; o.textContent=fo.nom; formSel.appendChild(o); });
-        Array.from(formSel.options).forEach(o => { o.selected = selected.includes(o.value); });
+        // Reconstruire les checkboxes
+        Pages.planning._renderFormateursChecks(formSel, selected);
       }
       // Rafraîchir aussi le filtre formateur du planning
       if (this._current === 'formateurs') {
@@ -629,6 +700,33 @@ const Pages = {
           this._showError('❌ Connexion échouée : ' + e.message);
         }
       });
+    },
+
+    deleteOldData() {
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const monthLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+      confirmDialog(
+        '🗑️ Supprimer les données passées',
+        `Supprimer définitivement toutes les formations antérieures au mois de ${monthLabel} ? Cette action est irréversible.`,
+        () => {
+          run(async () => {
+            const formations = await DB.getFormations();
+            const toDelete = formations.filter(f => f.dateDebut && f.dateDebut < currentMonthStart);
+            if (!toDelete.length) {
+              toast('Aucune formation à supprimer avant ce mois', 'info');
+              return;
+            }
+            for (const f of toDelete) {
+              await DB.deleteFormation(f.id);
+            }
+            toast(`${toDelete.length} formation(s) supprimée(s) ✅`, 'success');
+            Pages.planning.render();
+            App._refreshNotifBadge();
+          });
+        }
+      );
     },
 
     test() {
