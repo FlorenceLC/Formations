@@ -133,17 +133,13 @@ const Pages = {
       return noms.includes(this.filterFormateur);
     },
 
-    /* Le calendrier n'affiche pas le week-end : si on est samedi ou dimanche,
-       on met en avant le lundi suivant comme repère "aujourd'hui". */
+    /* Retourne la date du jour pour le surligné "aujourd'hui" dans le calendrier */
     _highlightDate() {
       const d = new Date(); d.setHours(0,0,0,0);
-      const day = d.getDay(); // 0 = dimanche, 6 = samedi
-      if (day === 6) d.setDate(d.getDate() + 2); // samedi -> lundi
-      if (day === 0) d.setDate(d.getDate() + 1); // dimanche -> lundi
       return d;
     },
 
-    /* ---- VUE MOIS (lundi → vendredi uniquement) ---- */
+    /* ---- VUE MOIS (lundi → dimanche) ---- */
     _renderMonth(container, formations, cats) {
       const year  = this.currentDate.getFullYear();
       const month = this.currentDate.getMonth();
@@ -173,19 +169,21 @@ const Pages = {
       const weeks = [];
       while (true) {
         const days = [];
-        for (let i = 0; i < 5; i++) { // lundi → vendredi
+        for (let i = 0; i < 7; i++) { // lundi → dimanche
           const d = new Date(weekStart); d.setDate(d.getDate() + i);
           days.push(d);
         }
         weeks.push({ weekNum: Fmt.weekNumber(weekStart), days });
         weekStart = new Date(weekStart); weekStart.setDate(weekStart.getDate() + 7);
-        if (days[4] >= last) break;
-        if (weeks.length > 7) break; // sécurité anti-boucle infinie
+        if (days[6] >= last) break;
+        if (weeks.length > 7) break;
       }
 
       let html = `<div class="cal-grid">
         <div class="cal-header">
-          ${['Lundi','Mardi','Mercredi','Jeudi','Vendredi'].map(d => `<div class="cal-day-header">${d}</div>`).join('')}
+          ${['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Sam.','Dim.'].map((d, i) =>
+            `<div class="cal-day-header${i >= 5 ? ' weekend-header' : ''}">${d}</div>`
+          ).join('')}
         </div>
         <div class="cal-body" style="grid-template-rows: repeat(${weeks.length}, 1fr); display:grid; grid-auto-flow:row;">`;
 
@@ -197,7 +195,8 @@ const Pages = {
           const dayForms  = byDate[key] || [];
 
           const cellDateStr = Fmt.isoDate(d);
-          html += `<div class="cal-cell${!isCurrent ? ' other-month' : ''}${isToday ? ' today' : ''}" style="grid-column:${idx+1};" onclick="Pages.planning._onCellClick(event,'${cellDateStr}')">`;
+          const isWeekend = idx >= 5;
+          html += `<div class="cal-cell${!isCurrent ? ' other-month' : ''}${isToday ? ' today' : ''}${isWeekend ? ' weekend' : ''}" style="grid-column:${idx+1};" onclick="Pages.planning._onCellClick(event,'${cellDateStr}')">`;
           html += `<div style="display:flex;align-items:center;gap:6px;">
                       <div class="day-num">${d.getDate()}</div>
                       ${idx === 0 ? `<span style="font-size:10px;font-weight:700;color:var(--text-light);">S${week.weekNum}</span>` : ''}
@@ -209,9 +208,9 @@ const Pages = {
             const isFilteredOut = !isAnnulee && !this._matchesFilter(f);
             const cls = isAnnulee ? ' annulee' : (isFilteredOut ? ' filtered-out' : '');
             html += `<div class="cal-event${cls}"
-              title="${cat?.nom||'—'}\n⏰ ${Fmt.time(f.dateDebut)}\n👨‍🏫 ${f.formateurs||'—'}\n📍 ${f.lieu||'—'}"
+              title="${cat?.nom?.toUpperCase()||'—'}\n⏰ ${Fmt.time(f.dateDebut)}\n👨‍🏫 ${f.formateurs||'—'}\n📍 ${f.lieu||'—'}"
               onclick="Pages.planning._openDetail('${f.id}')">
-              <div class="cal-event-cat">${cat?.nom || '—'}</div>
+              <div class="cal-event-cat">${cat?.nom?.toUpperCase() || '—'}</div>
               <div class="cal-event-meta">⏰ ${Fmt.time(f.dateDebut)} · 👨‍🏫 ${f.formateurs||'—'}</div>
             </div>`;
           });
@@ -230,12 +229,13 @@ const Pages = {
     _renderWeek(container, formations, cats) {
       const ws = this._weekStart(this.currentDate);
       const today = this._highlightDate();
-      const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+      const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 
-      let html = '<div class="week-grid">';
-      for (let i = 0; i < 5; i++) {
+      let html = '<div class="week-grid week-grid-7">';
+      for (let i = 0; i < 7; i++) {
         const d = new Date(ws); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
         const isToday  = d.getTime() === today.getTime();
+        const isWeekend = i >= 5;
         const key      = Fmt.isoDate(d);
         const dayForms = formations.filter(f => {
           if (!f.dateDebut) return false;
@@ -245,7 +245,7 @@ const Pages = {
         });
 
         const wdateStr = Fmt.isoDate(d);
-        html += `<div class="week-col${isToday ? ' today' : ''} show" onclick="Pages.planning._onCellClick(event,'${wdateStr}')">
+        html += `<div class="week-col${isToday ? ' today' : ''}${isWeekend ? ' weekend' : ''} show" onclick="Pages.planning._onCellClick(event,'${wdateStr}')">
           <div class="week-col-header"><div class="wday">${jours[i]}</div><div class="wdate">${d.getDate()}</div></div>
           <div class="week-col-body">`;
 
@@ -258,7 +258,7 @@ const Pages = {
             const isFilteredOut = !isAnnulee && !this._matchesFilter(f);
             const cls = isAnnulee ? ' annulee' : (isFilteredOut ? ' filtered-out' : '');
             html += `<div class="week-event${cls}" onclick="Pages.planning._openDetail('${f.id}')">
-              <div class="week-event-cat">${cat?.nom || '—'}</div>
+              <div class="week-event-cat">${cat?.nom?.toUpperCase() || '—'}</div>
               <div class="week-event-meta">⏰ ${Fmt.time(f.dateDebut)} – ${Fmt.time(f.dateFin)}</div>
               <div class="week-event-meta">👨‍🏫 ${f.formateurs||'—'}</div>
               <div class="week-event-meta">📍 ${f.lieu||'—'}</div>
@@ -297,9 +297,9 @@ const Pages = {
         if (!f) return;
         const cat = cats.find(c => c.id === f.categorieId);
 
-        document.getElementById('detail-modal-title').textContent = cat?.nom || '—';
+        document.getElementById('detail-modal-title').textContent = cat?.nom?.toUpperCase() || '—';
         document.getElementById('detail-modal-body').innerHTML = `
-          <div class="detail-row"><span class="detail-icon">🏷</span><div><div class="detail-key">Catégorie</div><div class="detail-val">${cat?.nom||'—'}</div></div></div>
+          <div class="detail-row"><span class="detail-icon">🏷</span><div><div class="detail-key">Catégorie</div><div class="detail-val">${cat?.nom?.toUpperCase()||'—'}</div></div></div>
           <div class="detail-row"><span class="detail-icon">⏰</span><div><div class="detail-key">Horaires</div><div class="detail-val">${(() => {
             const dDebut = new Date(f.dateDebut);
             const dFin   = new Date(f.dateFin);
@@ -391,11 +391,10 @@ const Pages = {
 
       document.getElementById('form-modal-title').textContent = isEdit ? '✏️  Modifier la formation' : '➕  Nouvelle formation';
 
-      // Catégories
+      // Catégories — "Nouvelle catégorie" EN HAUT pour un accès rapide
       const sel = document.getElementById('form-categorie');
-      sel.innerHTML = '<option value="">— Sélectionner —</option>';
-      cats.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=c.nom; sel.appendChild(o); });
-      sel.innerHTML += '<option value="__new__">➕ Nouvelle catégorie...</option>';
+      sel.innerHTML = '<option value="">— Sélectionner —</option><option value="__new__">➕ Nouvelle catégorie...</option>';
+      cats.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=c.nom.toUpperCase(); sel.appendChild(o); });
 
       // Lieux
       const lieuSel = document.getElementById('form-lieu');
@@ -431,6 +430,13 @@ const Pages = {
         heureDebutEl.value = `${String(hd.getHours()).padStart(2,'0')}:${String(hd.getMinutes()).padStart(2,'0')}`;
       } else {
         heureDebutEl.value = '08:00';
+      }
+      const heureFinEl = document.getElementById('form-heure-fin');
+      if (f?.dateFin) {
+        const hf = new Date(f.dateFin);
+        heureFinEl.value = `${String(hf.getHours()).padStart(2,'0')}:${String(hf.getMinutes()).padStart(2,'0')}`;
+      } else {
+        heureFinEl.value = '17:00';
       }
       dateFinEl.value = f?.dateFin ? Fmt.isoDate(new Date(f.dateFin)) : defaultDate;
       document.getElementById('form-journee-row').style.display = creneau === 'journee' ? 'block' : 'none';
@@ -494,13 +500,14 @@ const Pages = {
         const creneau = document.getElementById('form-creneau').value;
         if (!dateStr) { toast('La date est obligatoire', 'error'); return; }
 
-        const dateFinStr   = creneau === 'journee' ? (document.getElementById('form-date-fin').value || dateStr) : null;
+        const dateFinStr    = creneau === 'journee' ? (document.getElementById('form-date-fin').value || dateStr) : null;
         const heureDebutStr = creneau === 'journee' ? document.getElementById('form-heure-debut').value : null;
-        const { dateDebut, dateFin } = buildCreneauDates(dateStr, creneau, dateFinStr, heureDebutStr);
+        const heureFinStr   = creneau === 'journee' ? document.getElementById('form-heure-fin').value : null;
+        const { dateDebut, dateFin } = buildCreneauDates(dateStr, creneau, dateFinStr, heureDebutStr, heureFinStr);
 
         let categorieId = document.getElementById('form-categorie').value;
         if (categorieId === '__new__') {
-          const nom = document.getElementById('form-new-categorie').value.trim();
+          const nom = document.getElementById('form-new-categorie').value.trim().toUpperCase();
           if (!nom) { toast('Saisir le nom de la catégorie', 'error'); return; }
           const nc = await DB.saveCategory({ id: newId(), nom, couleur: '#2563EB' });
           categorieId = nc.id;

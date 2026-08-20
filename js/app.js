@@ -161,24 +161,23 @@ const CRENEAUX = {
 /* Construit dateDebut/dateFin ISO à partir d'une date (YYYY-MM-DD) et d'un créneau.
    Le créneau "nuit" se termine après minuit : la date de fin passe au jour suivant.
    Le créneau "journee" utilise une date de fin séparée et une heure de début personnalisable. */
-function buildCreneauDates(dateStr, creneauKey, dateFinStr = null, heureDebutStr = null) {
+function buildCreneauDates(dateStr, creneauKey, dateFinStr = null, heureDebutStr = null, heureFinStr = null) {
   const c = CRENEAUX[creneauKey];
   if (!c || !dateStr) return { dateDebut: null, dateFin: null };
   const [y, m, d] = dateStr.split('-').map(Number);
 
   if (creneauKey === 'journee') {
     let startH = c.startH, startM = c.startM;
-    if (heureDebutStr) {
-      const [hh, mm] = heureDebutStr.split(':').map(Number);
-      startH = hh; startM = mm;
-    }
+    if (heureDebutStr) { const [hh, mm] = heureDebutStr.split(':').map(Number); startH = hh; startM = mm; }
     const debut = new Date(y, m - 1, d, startH, startM, 0);
+    let endH = c.endH, endM = c.endM;
+    if (heureFinStr) { const [hh, mm] = heureFinStr.split(':').map(Number); endH = hh; endM = mm; }
     let fin;
     if (dateFinStr) {
       const [yf, mf, df] = dateFinStr.split('-').map(Number);
-      fin = new Date(yf, mf - 1, df, c.endH, c.endM, 0);
+      fin = new Date(yf, mf - 1, df, endH, endM, 0);
     } else {
-      fin = new Date(y, m - 1, d, c.endH, c.endM, 0);
+      fin = new Date(y, m - 1, d, endH, endM, 0);
     }
     return { dateDebut: debut.toISOString(), dateFin: fin.toISOString() };
   }
