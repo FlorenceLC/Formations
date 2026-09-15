@@ -191,17 +191,27 @@ function buildCreneauDates(dateStr, creneauKey, dateFinStr = null, heureDebutStr
 /* Devine le créneau à partir d'une heure de début (pour l'édition) */
 function guessCreneau(dateDebutIso, dateFinIso) {
   if (!dateDebutIso) return 'matin';
-  // Journée : si la date de fin est différente du jour de début ou si les deux couvrent toute la journée
-  if (dateFinIso) {
-    const dDebut = new Date(dateDebutIso);
-    const dFin   = new Date(dateFinIso);
-    const sameDay = dDebut.toDateString() === dFin.toDateString();
-    if (!sameDay) return 'journee'; // plusieurs jours → journee
-  }
   const h = new Date(dateDebutIso).getHours();
-  if (h < 13) return 'matin';
-  if (h < 19) return 'aprem';
-  return 'nuit';
+  // D'abord détecter le créneau par l'heure de début
+  if (h >= 19 || h < 6) return 'nuit';   // créneau nuit → jamais journée
+  if (h < 13) {
+    // Matin OU journée : journée seulement si la fin est > 1 jour après le début
+    if (dateFinIso) {
+      const dDebut = new Date(dateDebutIso); dDebut.setHours(0,0,0,0);
+      const dFin   = new Date(dateFinIso);   dFin.setHours(0,0,0,0);
+      const diffDays = Math.round((dFin - dDebut) / 86400000);
+      if (diffDays >= 1) return 'journee';
+    }
+    return 'matin';
+  }
+  // 13h-19h : après-midi OU journée
+  if (dateFinIso) {
+    const dDebut = new Date(dateDebutIso); dDebut.setHours(0,0,0,0);
+    const dFin   = new Date(dateFinIso);   dFin.setHours(0,0,0,0);
+    const diffDays = Math.round((dFin - dDebut) / 86400000);
+    if (diffDays >= 1) return 'journee';
+  }
+  return 'aprem';
 }
 
 /* ===== NOTIFICATION TYPE ICONS ===== */

@@ -150,30 +150,24 @@ const Pages = {
       const byDate = {};
       formations.forEach(f => {
         if (!f.dateDebut) return;
+        const creneau = guessCreneau(f.dateDebut, f.dateFin);
         const dDebut = new Date(f.dateDebut); dDebut.setHours(0,0,0,0);
-        // Pour les créneaux de nuit (fin < 12h du lendemain), on n'affiche que sur le jour de début
-        let dFin;
-        if (f.dateFin) {
-          const rawFin = new Date(f.dateFin);
-          const finMidnight = new Date(rawFin); finMidnight.setHours(0,0,0,0);
-          const debutPlusOne = new Date(dDebut); debutPlusOne.setDate(debutPlusOne.getDate() + 1);
-          // Si la dateFin est le lendemain ET avant midi → créneau nuit → on ne compte que le jour de début
-          if (finMidnight.getTime() === debutPlusOne.getTime() && rawFin.getHours() < 12) {
-            dFin = new Date(dDebut);
-          } else {
-            dFin = finMidnight;
+
+        if (creneau === 'journee' && f.dateFin) {
+          // Journée/plusieurs jours : afficher sur toute la plage
+          const dFin = new Date(f.dateFin); dFin.setHours(0,0,0,0);
+          let cur = new Date(dDebut);
+          let safety = 0;
+          while (cur <= dFin && safety < 60) {
+            const key = Fmt.isoDate(cur);
+            (byDate[key] = byDate[key] || []).push(f);
+            cur.setDate(cur.getDate() + 1);
+            safety++;
           }
         } else {
-          dFin = new Date(dDebut);
-        }
-
-        let cur = new Date(dDebut);
-        let safety = 0;
-        while (cur <= dFin && safety < 60) {
-          const key = Fmt.isoDate(cur);
+          // Matin, après-midi, nuit : uniquement le jour de début
+          const key = Fmt.isoDate(dDebut);
           (byDate[key] = byDate[key] || []).push(f);
-          cur.setDate(cur.getDate() + 1);
-          safety++;
         }
       });
 
@@ -252,22 +246,13 @@ const Pages = {
         const key      = Fmt.isoDate(d);
         const dayForms = formations.filter(f => {
           if (!f.dateDebut) return false;
+          const creneau = guessCreneau(f.dateDebut, f.dateFin);
           const dDebut = new Date(f.dateDebut); dDebut.setHours(0,0,0,0);
-          // Créneau nuit : fin le lendemain avant midi → on n'affiche que sur le jour de début
-          let dFin;
-          if (f.dateFin) {
-            const rawFin = new Date(f.dateFin);
-            const finMidnight = new Date(rawFin); finMidnight.setHours(0,0,0,0);
-            const debutPlusOne = new Date(dDebut); debutPlusOne.setDate(debutPlusOne.getDate() + 1);
-            if (finMidnight.getTime() === debutPlusOne.getTime() && rawFin.getHours() < 12) {
-              dFin = new Date(dDebut);
-            } else {
-              dFin = finMidnight;
-            }
-          } else {
-            dFin = new Date(dDebut);
+          if (creneau === 'journee' && f.dateFin) {
+            const dFin = new Date(f.dateFin); dFin.setHours(0,0,0,0);
+            return d >= dDebut && d <= dFin;
           }
-          return d >= dDebut && d <= dFin;
+          return d.getTime() === dDebut.getTime();
         });
 
         const wdateStr = Fmt.isoDate(d);
