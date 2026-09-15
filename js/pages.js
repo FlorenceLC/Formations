@@ -151,9 +151,22 @@ const Pages = {
       formations.forEach(f => {
         if (!f.dateDebut) return;
         const dDebut = new Date(f.dateDebut); dDebut.setHours(0,0,0,0);
-        const dFin   = f.dateFin ? new Date(f.dateFin) : dDebut;
-        dFin.setHours(0,0,0,0);
-        // Indexer la formation sur chaque jour de sa plage (max 60 jours pour éviter une boucle infinie)
+        // Pour les créneaux de nuit (fin < 12h du lendemain), on n'affiche que sur le jour de début
+        let dFin;
+        if (f.dateFin) {
+          const rawFin = new Date(f.dateFin);
+          const finMidnight = new Date(rawFin); finMidnight.setHours(0,0,0,0);
+          const debutPlusOne = new Date(dDebut); debutPlusOne.setDate(debutPlusOne.getDate() + 1);
+          // Si la dateFin est le lendemain ET avant midi → créneau nuit → on ne compte que le jour de début
+          if (finMidnight.getTime() === debutPlusOne.getTime() && rawFin.getHours() < 12) {
+            dFin = new Date(dDebut);
+          } else {
+            dFin = finMidnight;
+          }
+        } else {
+          dFin = new Date(dDebut);
+        }
+
         let cur = new Date(dDebut);
         let safety = 0;
         while (cur <= dFin && safety < 60) {
@@ -240,7 +253,20 @@ const Pages = {
         const dayForms = formations.filter(f => {
           if (!f.dateDebut) return false;
           const dDebut = new Date(f.dateDebut); dDebut.setHours(0,0,0,0);
-          const dFin   = f.dateFin ? new Date(f.dateFin) : dDebut; dFin.setHours(0,0,0,0);
+          // Créneau nuit : fin le lendemain avant midi → on n'affiche que sur le jour de début
+          let dFin;
+          if (f.dateFin) {
+            const rawFin = new Date(f.dateFin);
+            const finMidnight = new Date(rawFin); finMidnight.setHours(0,0,0,0);
+            const debutPlusOne = new Date(dDebut); debutPlusOne.setDate(debutPlusOne.getDate() + 1);
+            if (finMidnight.getTime() === debutPlusOne.getTime() && rawFin.getHours() < 12) {
+              dFin = new Date(dDebut);
+            } else {
+              dFin = finMidnight;
+            }
+          } else {
+            dFin = new Date(dDebut);
+          }
           return d >= dDebut && d <= dFin;
         });
 
